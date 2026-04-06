@@ -1,27 +1,26 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { Header } from '~/components/layout/Header'
+import { Footer } from '~/components/layout/Footer'
+import { getNavLinks } from '~/server/fns/navigation'
 
 export const Route = createFileRoute('/events/$eventId')({
+  loader: async () => {
+    const [headerLinks, footerLinks] = await Promise.all([
+      getNavLinks({ data: { position: 'header' } }),
+      getNavLinks({ data: { position: 'footer' } }),
+    ])
+    return { headerLinks, footerLinks }
+  },
   component: EventDetailPage,
 })
 
 function EventDetailPage() {
   const { eventId } = Route.useParams()
+  const { headerLinks, footerLinks } = Route.useLoaderData()
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="border-b bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link to="/" className="text-2xl font-bold text-indigo-600">
-            EOM
-          </Link>
-          <Link
-            to="/login"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
-          >
-            Login
-          </Link>
-        </div>
-      </nav>
+      <Header links={headerLinks} />
 
       <div className="mx-auto max-w-4xl px-6 py-10">
         {/* Event Banner */}
@@ -55,6 +54,8 @@ function EventDetailPage() {
           </Link>
         </div>
       </div>
+
+      <Footer links={footerLinks} />
     </div>
   )
 }

@@ -1,37 +1,25 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { Header } from '~/components/layout/Header'
+import { Footer } from '~/components/layout/Footer'
+import { getNavLinks } from '~/server/fns/navigation'
 
 export const Route = createFileRoute('/')({
+  loader: async () => {
+    const [headerLinks, footerLinks] = await Promise.all([
+      getNavLinks({ data: { position: 'header' } }),
+      getNavLinks({ data: { position: 'footer' } }),
+    ])
+    return { headerLinks, footerLinks }
+  },
   component: Home,
 })
 
 function Home() {
+  const { headerLinks, footerLinks } = Route.useLoaderData()
+
   return (
     <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="border-b bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link to="/" className="text-2xl font-bold text-indigo-600">
-            EOM
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link to="/events" className="text-gray-700 hover:text-indigo-600">
-              Events
-            </Link>
-            <Link to="/posts" className="text-gray-700 hover:text-indigo-600">
-              News
-            </Link>
-            <Link to="/faq" className="text-gray-700 hover:text-indigo-600">
-              FAQ
-            </Link>
-            <Link
-              to="/login"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
-            >
-              Login
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Header links={headerLinks} />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-indigo-600 to-purple-700 px-6 py-24 text-white">
@@ -66,7 +54,6 @@ function Home() {
             Check out the latest events happening near you
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Placeholder cards — will be dynamic */}
             <div className="rounded-xl border bg-white p-6 shadow-sm">
               <div className="h-40 rounded-lg bg-gray-200" />
               <h3 className="mt-4 text-lg font-semibold">Coming Soon</h3>
@@ -109,16 +96,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 px-6 py-10 text-gray-400">
-        <div className="mx-auto max-w-7xl text-center">
-          <p className="text-lg font-semibold text-white">EOM — Event Of Mine</p>
-          <p className="mt-2 text-sm">
-            The all-in-one platform for event organization, ticket sales, and
-            more.
-          </p>
-        </div>
-      </footer>
+      <Footer links={footerLinks} />
     </div>
   )
 }
