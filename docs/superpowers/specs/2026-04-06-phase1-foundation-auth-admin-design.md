@@ -446,7 +446,7 @@ updatedAt       timestamp   not null, defaultNow()
 **`user_profiles`**
 ```
 id              text        PK (crypto.randomUUID())
-userId          text        not null, FK → users.id ON DELETE CASCADE, unique
+userId          text        not null, FK → users.id, unique (users are never deleted — no ON DELETE needed)
 phone           text        nullable
 bio             text        nullable
 dateOfBirth     date        nullable
@@ -463,7 +463,7 @@ updatedAt       timestamp   not null, defaultNow()
 **`user_logs`**
 ```
 id              text        PK (crypto.randomUUID())
-userId          text        nullable, FK → users.id ON DELETE SET NULL
+userId          text        nullable, FK → users.id (users are never deleted; nullable for system-generated logs)
 action          text        not null
 details         jsonb       nullable
 ipAddress       text        nullable
@@ -472,7 +472,7 @@ createdAt       timestamp   not null, defaultNow()
 
 Phase 1 tracked actions:
 - `user_created`, `user_updated`, `role_changed`
-- `user_activated`, `user_deactivated`, `user_deleted`
+- `user_activated`, `user_deactivated`
 - `user_suspended`, `user_resumed`
 - `login`, `logout`, `password_reset`
 - `permission_changed`
@@ -500,7 +500,7 @@ id              text        PK (crypto.randomUUID())
 role            text        not null
 targetPage      text        not null
 canPublish      boolean     not null, default true
-grantedBy       text        nullable, FK → users.id ON DELETE SET NULL
+grantedBy       text        nullable, FK → users.id (users are never deleted)
 createdAt       timestamp   not null, defaultNow()
 updatedAt       timestamp   not null, defaultNow()
 
@@ -510,10 +510,10 @@ UNIQUE(role, targetPage)
 **`user_capabilities`** — Granular per-user capability assignments for Staff and Admin roles:
 ```
 id              text        PK (crypto.randomUUID())
-userId          text        not null, FK → users.id ON DELETE CASCADE
+userId          text        not null, FK → users.id (users are never deleted)
 capability      text        not null (capability key — see capability registry below)
 granted         boolean     not null, default true
-grantedBy       text        nullable, FK → users.id ON DELETE SET NULL
+grantedBy       text        nullable, FK → users.id (users are never deleted)
 createdAt       timestamp   not null, defaultNow()
 updatedAt       timestamp   not null, defaultNow()
 
@@ -531,8 +531,7 @@ Capabilities are string keys organized by category. New capabilities can be adde
 | **Economics** | `economics:export` | Export financial reports | Staff |
 | **Statistics** | `stats:view` | View platform statistics (user counts, events, etc.) | Staff |
 | **Statistics** | `stats:export` | Export statistics reports | Staff |
-| **Admin** | `admin:users:manage` | Create/edit/deactivate users | Admin |
-| **Admin** | `admin:users:delete` | Permanently delete users | Admin |
+| **Admin** | `admin:users:manage` | Create/edit/activate/deactivate users | Admin |
 | **Admin** | `admin:logs:view` | View activity logs | Admin |
 | **Admin** | `admin:navigation:manage` | Manage header/footer navigation | Admin |
 | **Admin** | `admin:permissions:manage` | Manage publishing permissions matrix | Admin |
@@ -616,6 +615,41 @@ When a suspended user tries to create new work, server functions check `isSuspen
 - `user_suspended` — when suspension is enabled
 - `user_resumed` — when suspension is lifted
 
+### 3.4 Inactive User Visibility
+
+**No user is ever deleted.** Instead, when an admin or superadmin sets a user to `isActive = false`, the user is effectively hidden from the entire platform:
+
+**What happens when a user is deactivated:**
+1. **Cannot log in** — session creation is blocked by the `databaseHooks.session.create.before` hook (Section 2.1)
+2. **Existing sessions invalidated** — all active sessions for the user are deleted when `isActive` is set to `false`
+3. **Content hidden platform-wide** — all queries for user-generated content (events, posts, catalog entries, profiles, sponsor tickets, negotiation entries, etc.) filter out rows belonging to inactive users. This is enforced by joining on `users.isActive = true` in all public and authenticated queries.
+4. **Not listed in public-facing searches** — business profiles, organizer pages, distributor catalogs, etc. are excluded from search results and listing pages
+5. **Ongoing negotiations paused** — if the user had active negotiations, they appear frozen to the other party with a "This party is currently unavailable" message (no data leaked about deactivation reason)
+
+**What is preserved:**
+- The user's data remains in the database (never deleted)
+- Admin/Superadmin can still see inactive users in the admin user list (filtered by status)
+- Admin/Superadmin can reactivate the user at any time, which restores all their content and access
+- Logs referencing the user remain intact and visible to admins
+- When reactivated, the user returns to their previous state (including suspension status if applicable)
+
+**Implementation pattern for content filtering (used in later phases):**
+All queries that return user-generated content to public or authenticated routes include a join or subquery check:
+```typescript
+// Example: listing events (Phase 2)
+const events = await db.query.events.findMany({
+  where: and(
+    eq(events.status, 'available'),
+    // Only show events from active users
+    inArray(events.organizerId,
+      db.select({ id: users.id }).from(users).where(eq(users.isActive, true))
+    ),
+  ),
+})
+```
+
+**Phase 1 scope:** In Phase 1, the only place inactive users need to be filtered is the admin user list (which includes a status filter). Content filtering becomes relevant starting from Phase 2 (events), Phase 3 (negotiations), and Phase 4 (business profiles). The pattern above is documented here so it's applied consistently across all phases.
+
 ---
 
 ## 4. Admin Panel
@@ -642,8 +676,7 @@ When a suspended user tries to create new work, server functions check `isSuspen
 **Capability-gated access convention:** Throughout this spec, "Admin+ only" on a server function means: Superadmin always has access (bypasses all checks). For Admin role, access requires the corresponding capability from the registry (Section 3.2). The mapping:
 | Admin Route/Function | Required Capability |
 |---|---|
-| User management (CRUD, status) | `admin:users:manage` |
-| User deletion | `admin:users:delete` |
+| User management (create, edit, activate/deactivate) | `admin:users:manage` |
 | Activity logs | `admin:logs:view` |
 | Navigation management | `admin:navigation:manage` |
 | Publishing permissions | `admin:permissions:manage` |
@@ -688,15 +721,15 @@ Overview cards — each card is only visible if the admin has the corresponding 
 - Select multiple users via checkboxes
 - Bulk role change (admin+ only)
 - Bulk activate/deactivate (admin+ only)
-- Bulk delete (superadmin only)
 
 **Superadmin-only actions:**
 - Create/edit Admin accounts
-- Delete users permanently
+
+**No deletion — ever:** Users are never deleted from the system. Instead, use the active/inactive toggle. When a user is set to inactive, they are effectively removed from the platform — they cannot log in and all their content is hidden everywhere (see Section 3.4 "Inactive User Visibility").
 
 **Self-protection rules:**
-- Users cannot deactivate, delete, or demote their own account
-- The last remaining superadmin account cannot be deleted, deactivated, or demoted — server functions check the superadmin count before allowing these operations and reject with error `LAST_SUPERADMIN` if only one remains
+- Users cannot deactivate or demote their own account
+- The last remaining superadmin account cannot be deactivated or demoted — server functions check the superadmin count before allowing these operations and reject with error `LAST_SUPERADMIN` if only one remains
 
 **Server functions (`app/server/fns/admin.ts`):**
 
@@ -722,11 +755,6 @@ Overview cards — each card is only visible if the admin has the corresponding 
 - Sets `isActive` on user
 - Logs `user_activated` or `user_deactivated`
 
-`deleteUser({ id })`
-- Requires `admin:users:delete` capability (Superadmin bypasses)
-- Permanently removes user
-- Logs `user_deleted` (userId set to null since user is gone, details contain deleted user info)
-
 `bulkUpdateRole({ userIds, role })`
 - Requires `admin:users:manage` capability
 - If target role is `admin`, requires Superadmin (prevents privilege escalation)
@@ -736,10 +764,6 @@ Overview cards — each card is only visible if the admin has the corresponding 
 `bulkToggleStatus({ userIds, active })`
 - Requires `admin:users:manage` capability
 - Logs per user
-
-`bulkDeleteUsers({ userIds })`
-- Requires `admin:users:delete` capability (Superadmin bypasses)
-- For each user: logs `user_deleted` with `userId: null` and deleted user info in `details` (same pattern as single `deleteUser`)
 
 ### 4.4 Activity Logs (`/admin/logs`)
 
