@@ -704,8 +704,8 @@ Overview cards — each card is only visible if the admin has the corresponding 
 
 **Create user form:**
 - Fields: Name, Email, Password, Role (dropdown — all roles except `superadmin`)
-- Admin can only create roles up to `admin`
-- Superadmin can create any role except `superadmin`
+- Admin can create: `user`, `organizer`, `distributor`, `sponsor`, `negotiator`, `service_provider`, `marketing_agency`, `staff` (all roles except `admin` and `superadmin`)
+- Superadmin can create all of the above **plus** `admin` (cannot create `superadmin` — seeder only)
 - On submit: creates user, creates empty `user_profiles` row, logs `user_created`
 
 **Edit user:**
@@ -740,7 +740,7 @@ Overview cards — each card is only visible if the admin has the corresponding 
 
 `createUser({ name, email, password, role })`
 - Requires `admin:users:manage` capability
-- Validates role assignment permissions (admin cannot create superadmin; bulk role change to `admin` requires Superadmin)
+- Validates role assignment permissions (Admin cannot create `admin` or `superadmin`; only Superadmin can create `admin`)
 - Creates user via Better Auth's admin API
 - Creates empty `user_profiles` row
 - Logs `user_created` to `user_logs`
