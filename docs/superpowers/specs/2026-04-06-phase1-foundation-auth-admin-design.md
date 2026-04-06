@@ -542,8 +542,8 @@ Capabilities are string keys organized by category. New capabilities can be adde
 | **Admin** | `admin:viewer:access` | Read-only login as other users (Phase 7) | Admin |
 
 **How it works:**
-- **Superadmin** has ALL capabilities implicitly — never checked against `user_capabilities`. Superadmin is the only role that can assign/revoke Admin capabilities.
-- **Admin** capabilities are assigned per-user by Superadmin. An Admin without `admin:users:manage` cannot access the user management page.
+- **Superadmin** has ALL capabilities implicitly — never checked against `user_capabilities`. Superadmin has every ability that Admin has, plus exclusive actions: creating Admin accounts, assigning/revoking Admin capabilities, and managing Admin-role users' capability pages.
+- **Admin** capabilities are assigned per-user by Superadmin. An Admin without `admin:users:manage` cannot access the user management page. Admin can manage Staff capabilities (with `admin:capabilities:manage`) but cannot manage other Admins' capabilities.
 - **Staff** capabilities are assigned per-user by Admin (with `admin:capabilities:manage`) or Superadmin.
 - Server functions check capabilities via a helper: `await requireCapability(session, 'admin:users:manage')`
 
@@ -713,6 +713,7 @@ Overview cards — each card is only visible if the admin has the corresponding 
 - Toggle active/inactive status
 - Toggle suspended/active for business roles (Organizer, Distributor, Sponsor, Service Provider, Marketing Agency, Negotiator)
 - "Manage Capabilities" link → `/admin/users/:id/caps` (for Staff and Admin users)
+- Admin can edit all users except Admin-role and Superadmin-role users — only Superadmin can edit those
 - Role changes logged as `role_changed`
 - Status changes logged as `user_activated` or `user_deactivated`
 - Suspension changes logged as `user_suspended` or `user_resumed`
@@ -722,8 +723,12 @@ Overview cards — each card is only visible if the admin has the corresponding 
 - Bulk role change (admin+ only)
 - Bulk activate/deactivate (admin+ only)
 
-**Superadmin-only actions:**
-- Create/edit Admin accounts
+**Superadmin has all Admin abilities plus these exclusive actions:**
+- Create/edit/activate/deactivate Admin accounts
+- Assign and revoke Admin capabilities (controls what each Admin can do)
+- Manage capabilities for Admin-role users (Admin can only manage Staff capabilities)
+- Change any user's role to `admin`
+- Override any capability check (implicit — never stored in `user_capabilities`)
 
 **No deletion — ever:** Users are never deleted from the system. Instead, use the active/inactive toggle. When a user is set to inactive, they are effectively removed from the platform — they cannot log in and all their content is hidden everywhere (see Section 3.4 "Inactive User Visibility").
 
