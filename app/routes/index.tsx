@@ -1,0 +1,124 @@
+import { createFileRoute, Link } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/')({
+  component: Home,
+})
+
+function Home() {
+  return (
+    <div className="min-h-screen">
+      {/* Navigation */}
+      <nav className="border-b bg-white px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <Link to="/" className="text-2xl font-bold text-indigo-600">
+            EOM
+          </Link>
+          <div className="flex items-center gap-6">
+            <Link to="/events" className="text-gray-700 hover:text-indigo-600">
+              Events
+            </Link>
+            <Link to="/posts" className="text-gray-700 hover:text-indigo-600">
+              News
+            </Link>
+            <Link to="/faq" className="text-gray-700 hover:text-indigo-600">
+              FAQ
+            </Link>
+            <Link
+              to="/login"
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+            >
+              Login
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-indigo-600 to-purple-700 px-6 py-24 text-white">
+        <div className="mx-auto max-w-4xl text-center">
+          <h1 className="text-5xl font-bold">Event Of Mine</h1>
+          <p className="mt-4 text-xl text-indigo-100">
+            Discover, organize, and attend events. From ticket purchase to hotel
+            reservations — everything in one platform.
+          </p>
+          <div className="mt-8 flex justify-center gap-4">
+            <Link
+              to="/events"
+              className="rounded-lg bg-white px-6 py-3 font-semibold text-indigo-600 hover:bg-indigo-50"
+            >
+              Browse Events
+            </Link>
+            <Link
+              to="/register"
+              className="rounded-lg border-2 border-white px-6 py-3 font-semibold text-white hover:bg-white/10"
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Events Section */}
+      <section className="px-6 py-16">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="text-center text-3xl font-bold">Upcoming Events</h2>
+          <p className="mt-2 text-center text-gray-600">
+            Check out the latest events happening near you
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Placeholder cards — will be dynamic */}
+            <div className="rounded-xl border bg-white p-6 shadow-sm">
+              <div className="h-40 rounded-lg bg-gray-200" />
+              <h3 className="mt-4 text-lg font-semibold">Coming Soon</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Events will appear here once organizers publish them.
+              </p>
+            </div>
+          </div>
+          <div className="mt-8 text-center">
+            <Link
+              to="/events"
+              className="text-indigo-600 hover:text-indigo-800"
+            >
+              View All Events →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter Section */}
+      <section className="bg-gray-100 px-6 py-16">
+        <div className="mx-auto max-w-xl text-center">
+          <h2 className="text-2xl font-bold">Stay Updated</h2>
+          <p className="mt-2 text-gray-600">
+            Subscribe to get notified about new events and news
+          </p>
+          <form className="mt-6 flex gap-2" onSubmit={(e) => e.preventDefault()}>
+            <input
+              type="email"
+              placeholder="Your email address"
+              className="flex-1 rounded-lg border px-4 py-2 focus:border-indigo-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-indigo-600 px-6 py-2 text-white hover:bg-indigo-700"
+            >
+              Subscribe
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 px-6 py-10 text-gray-400">
+        <div className="mx-auto max-w-7xl text-center">
+          <p className="text-lg font-semibold text-white">EOM — Event Of Mine</p>
+          <p className="mt-2 text-sm">
+            The all-in-one platform for event organization, ticket sales, and
+            more.
+          </p>
+        </div>
+      </footer>
+    </div>
+  )
+}
