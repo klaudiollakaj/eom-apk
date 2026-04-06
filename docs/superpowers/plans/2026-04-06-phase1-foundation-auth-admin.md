@@ -908,10 +908,8 @@ async function main() {
     })
     .where(eq(schema.users.id, result.user.id))
 
-  // Create empty profile
-  await db.insert(schema.userProfiles).values({
-    userId: result.user.id,
-  })
+  // Profile is auto-created by databaseHooks.user.create.after
+  // No explicit insert needed here
 
   // Log the creation
   await db.insert(schema.userLogs).values({
@@ -1754,7 +1752,7 @@ function LoginPage() {
       }
       // Redirect unverified users to verify-email page
       if (result.data?.user && !result.data.user.emailVerified) {
-        navigate({ to: '/verify-email' })
+        navigate({ to: '/verify-email', search: { email } })
         return
       }
       // Redirect based on role
@@ -1860,7 +1858,7 @@ function RegisterPage() {
         setLoading(false)
         return
       }
-      navigate({ to: '/verify-email' })
+      navigate({ to: '/verify-email', search: { email } })
     } catch {
       setError('An unexpected error occurred.')
       setLoading(false)
@@ -1945,18 +1943,23 @@ import { useState } from 'react'
 import { authClient } from '~/lib/auth-client'
 
 export const Route = createFileRoute('/verify-email')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    email: (search.email as string) ?? '',
+  }),
   component: VerifyEmailPage,
 })
 
 function VerifyEmailPage() {
+  const { email } = Route.useSearch()
   const [resent, setResent] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function handleResend() {
+    if (!email) return
     setLoading(true)
     try {
       await authClient.sendVerificationEmail({
-        email: '', // Better Auth uses the current session's email
+        email,
         callbackURL: '/login',
       })
       setResent(true)
@@ -2280,8 +2283,8 @@ export const createUser = createServerFn({ method: 'POST' })
       .set({ role: targetRole, emailVerified: true })
       .where(eq(users.id, result.user.id))
 
-    // Create empty profile
-    await db.insert(userProfiles).values({ userId: result.user.id })
+    // Profile is auto-created by databaseHooks.user.create.after
+    // No explicit insert needed here
 
     // Log
     await db.insert(userLogs).values({
@@ -2494,6 +2497,19 @@ export const bulkToggleStatus = createServerFn({ method: 'POST' })
 
     for (const userId of data.userIds) {
       if (userId === session.user.id) continue // skip self
+
+      // Protect admin/superadmin from non-superadmin actors
+      const target = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: { role: true },
+      })
+      if (!target) continue
+      if (
+        !isSuperadmin(session.user.role as Role) &&
+        (target.role === 'admin' || target.role === 'superadmin')
+      ) {
+        continue // only Superadmin can toggle admin accounts
+      }
 
       await db
         .update(users)
@@ -3452,12 +3468,12 @@ function UserActions({
             )}
 
           {(user.role === 'staff' || user.role === 'admin') && (
-            <a
-              href={`/admin/users/${user.id}/caps`}
+            <Link
+              to={`/admin/users/${user.id}/caps`}
               className="rounded bg-purple-100 px-2 py-1 text-xs text-purple-700"
             >
               Capabilities
-            </a>
+            </Link>
           )}
         </>
       )}
