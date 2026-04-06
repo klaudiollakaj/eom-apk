@@ -25,5 +25,18 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: true
       MP_SMTP_AUTH_ALLOW_INSECURE: true
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://eom:eom@postgres:5432/eom
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:
