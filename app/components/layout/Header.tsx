@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useSession } from '~/lib/auth-client'
 import { UserDropdown } from './UserDropdown'
+import { ThemeToggle } from '~/components/ui/ThemeToggle'
 
 interface NavLink {
   id: string
@@ -13,9 +14,9 @@ export function Header({ links }: { links: NavLink[] }) {
   const session = useSession()
 
   return (
-    <header className="border-b bg-white">
+    <header className="border-b bg-white dark:border-gray-700 dark:bg-gray-800">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link to="/" className="text-xl font-bold text-indigo-600">
+        <Link to="/" className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
           EOM
         </Link>
 
@@ -27,7 +28,7 @@ export function Header({ links }: { links: NavLink[] }) {
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
               >
                 {link.label}
               </a>
@@ -35,12 +36,14 @@ export function Header({ links }: { links: NavLink[] }) {
               <Link
                 key={link.id}
                 to={link.url}
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
               >
                 {link.label}
               </Link>
             ),
           )}
+
+          <ThemeToggle />
 
           {session.data?.user ? (
             <UserDropdown />

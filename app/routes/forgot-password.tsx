@@ -18,10 +18,10 @@ function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow dark:bg-gray-800">
           <h1 className="mb-4 text-2xl font-bold">Check Your Email</h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             If an account exists with that email, we sent a password reset link.
           </p>
         </div>
@@ -30,14 +30,14 @@ function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow dark:bg-gray-800">
         <h1 className="mb-6 text-center text-2xl font-bold">
           Forgot Password
         </h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Email
             </label>
             <input
@@ -45,7 +45,7 @@ function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 w-full rounded-md border px-3 py-2"
+              className="mt-1 w-full rounded-md border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
           <button

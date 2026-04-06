@@ -25,8 +25,8 @@ function AdminDashboard() {
       <h1 className="text-2xl font-bold">Admin Dashboard</h1>
 
       {!hasAnyStats && (
-        <div className="rounded-lg border bg-gray-50 p-6 text-center">
-          <p className="text-gray-600">
+        <div className="rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-6 text-center">
+          <p className="text-gray-600 dark:text-gray-300">
             Welcome! Contact your Superadmin to get access to admin features.
           </p>
         </div>
@@ -34,13 +34,13 @@ function AdminDashboard() {
 
       {stats.totalUsers != null && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-lg border bg-white p-4">
-            <p className="text-sm text-gray-500">Total Users</p>
+          <div className="rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
             <p className="text-2xl font-bold">{stats.totalUsers}</p>
           </div>
           {stats.usersByRole &&
             Object.entries(stats.usersByRole).map(([role, ct]) => (
-              <div key={role} className="rounded-lg border bg-white p-4">
+              <div key={role} className="rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
                 <RoleBadge role={role as Role} />
                 <p className="mt-1 text-lg font-semibold">{ct as number}</p>
               </div>
@@ -53,22 +53,22 @@ function AdminDashboard() {
           <h2 className="mb-2 text-lg font-semibold">
             Recent Accounts (last 7 days)
           </h2>
-          <div className="rounded-lg border">
-            <table className="min-w-full divide-y">
-              <thead className="bg-gray-50">
+          <div className="rounded-lg border dark:border-gray-700">
+            <table className="min-w-full divide-y dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                     Name
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                     Email
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                     Role
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y bg-white">
+              <tbody className="divide-y dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {stats.recentUsers.map((u: any) => (
                   <tr key={u.id}>
                     <td className="px-4 py-2 text-sm">{u.name}</td>
@@ -89,29 +89,29 @@ function AdminDashboard() {
           <h2 className="mb-2 text-lg font-semibold">
             Recent Activity (last 10)
           </h2>
-          <div className="rounded-lg border">
-            <table className="min-w-full divide-y">
-              <thead className="bg-gray-50">
+          <div className="rounded-lg border dark:border-gray-700">
+            <table className="min-w-full divide-y dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                     Action
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                     User
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                     Time
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y bg-white">
+              <tbody className="divide-y dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {stats.recentLogs.map((log: any) => (
                   <tr key={log.id}>
                     <td className="px-4 py-2 text-sm">{log.action}</td>
                     <td className="px-4 py-2 text-sm">
                       {log.user?.name ?? 'System'}
                     </td>
-                    <td className="px-4 py-2 text-sm text-gray-500">
+                    <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
                       {new Date(log.createdAt).toLocaleString()}
                     </td>
                   </tr>

@@ -31,24 +31,24 @@ export function UserDropdown() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-gray-100"
+        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
       >
         <span>{user.name}</span>
         <RoleBadge role={user.role as Role} />
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-1 w-48 rounded-md border bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-50 mt-1 w-48 rounded-md border bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
           <Link
             to={dashboardRoute}
-            className="block px-4 py-2 text-sm hover:bg-gray-100"
+            className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={() => setOpen(false)}
           >
             My Dashboard
           </Link>
           <Link
             to="/profile"
-            className="block px-4 py-2 text-sm hover:bg-gray-100"
+            className="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={() => setOpen(false)}
           >
             Profile
@@ -59,7 +59,7 @@ export function UserDropdown() {
               setOpen(false)
               navigate({ to: '/login' })
             }}
-            className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+            className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:text-red-400 dark:hover:bg-gray-700"
           >
             Logout
           </button>

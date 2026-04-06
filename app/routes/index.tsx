@@ -50,14 +50,14 @@ function Home() {
       <section className="px-6 py-16">
         <div className="mx-auto max-w-7xl">
           <h2 className="text-center text-3xl font-bold">Upcoming Events</h2>
-          <p className="mt-2 text-center text-gray-600">
+          <p className="mt-2 text-center text-gray-600 dark:text-gray-400">
             Check out the latest events happening near you
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-xl border bg-white p-6 shadow-sm">
-              <div className="h-40 rounded-lg bg-gray-200" />
+            <div className="rounded-xl border bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+              <div className="h-40 rounded-lg bg-gray-200 dark:bg-gray-700" />
               <h3 className="mt-4 text-lg font-semibold">Coming Soon</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Events will appear here once organizers publish them.
               </p>
             </div>
@@ -65,7 +65,7 @@ function Home() {
           <div className="mt-8 text-center">
             <Link
               to="/events"
-              className="text-indigo-600 hover:text-indigo-800"
+              className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
             >
               View All Events →
             </Link>
@@ -74,17 +74,17 @@ function Home() {
       </section>
 
       {/* Newsletter Section */}
-      <section className="bg-gray-100 px-6 py-16">
+      <section className="bg-gray-100 px-6 py-16 dark:bg-gray-800">
         <div className="mx-auto max-w-xl text-center">
           <h2 className="text-2xl font-bold">Stay Updated</h2>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
             Subscribe to get notified about new events and news
           </p>
           <form className="mt-6 flex gap-2" onSubmit={(e) => e.preventDefault()}>
             <input
               type="email"
               placeholder="Your email address"
-              className="flex-1 rounded-lg border px-4 py-2 focus:border-indigo-500 focus:outline-none"
+              className="flex-1 rounded-lg border px-4 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
             />
             <button
               type="submit"

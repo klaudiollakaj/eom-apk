@@ -46,9 +46,9 @@ export function AdminSidebar({
   )
 
   return (
-    <aside className="w-64 border-r bg-gray-50">
+    <aside className="w-64 border-r bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
       <div className="p-4">
-        <h2 className="text-lg font-semibold text-gray-900">Admin Panel</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Admin Panel</h2>
       </div>
       <nav className="space-y-1 px-2">
         {visibleItems.map((item) => {
@@ -59,8 +59,8 @@ export function AdminSidebar({
               to={item.href}
               className={`block rounded-md px-3 py-2 text-sm ${
                 isActive
-                  ? 'bg-indigo-100 text-indigo-700 font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-indigo-100 text-indigo-700 font-medium dark:bg-indigo-900 dark:text-indigo-300'
+                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
               }`}
             >
               {item.label}
@@ -68,13 +68,13 @@ export function AdminSidebar({
           )
         })}
       </nav>
-      <div className="mt-auto border-t p-4">
+      <div className="mt-auto border-t p-4 dark:border-gray-700">
         <button
           onClick={async () => {
             await signOut()
             navigate({ to: '/login' })
           }}
-          className="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+          className="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:text-red-400 dark:hover:bg-gray-700"
         >
           Logout
         </button>

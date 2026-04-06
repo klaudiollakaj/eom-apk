@@ -1,11 +1,18 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useSession, signOut } from '~/lib/auth-client'
 import { useState, useEffect } from 'react'
 import { getMyCapabilities } from '~/server/fns/capabilities'
+import { getSession } from '~/server/fns/auth-helpers'
 import { RoleBadge } from '~/components/ui/RoleBadge'
 import type { Role } from '~/lib/permissions'
 
 export const Route = createFileRoute('/staff')({
+  beforeLoad: async () => {
+    const session = await getSession()
+    if (!session) {
+      throw redirect({ to: '/login' })
+    }
+  },
   component: StaffPage,
 })
 
@@ -21,7 +28,7 @@ function StaffPage() {
     })
   }, [])
 
-  if (!user) return null
+  if (!user) return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>
 
   const hasPageEdit = capabilities.some((c) => c.startsWith('pages:edit:'))
   const hasEconomics = capabilities.includes('economics:view')
@@ -46,8 +53,8 @@ function StaffPage() {
       </div>
 
       {!hasAny && (
-        <div className="rounded-lg border bg-gray-50 p-6 text-center">
-          <p className="text-gray-600">
+        <div className="rounded-lg border dark:border-gray-700 bg-gray-50 p-6 text-center">
+          <p className="text-gray-600 dark:text-gray-400">
             Contact your admin to get access to staff features.
           </p>
         </div>
@@ -55,25 +62,25 @@ function StaffPage() {
 
       <div className="grid grid-cols-2 gap-4">
         {hasPageEdit && (
-          <div className="rounded-lg border bg-white p-4">
+          <div className="rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
             <h2 className="font-semibold">Edit Pages</h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Manage public page content (coming in Phase 2+)
             </p>
           </div>
         )}
         {hasEconomics && (
-          <div className="rounded-lg border bg-white p-4">
+          <div className="rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
             <h2 className="font-semibold">Economics</h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               View financial data (coming in Phase 5)
             </p>
           </div>
         )}
         {hasStats && (
-          <div className="rounded-lg border bg-white p-4">
+          <div className="rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
             <h2 className="font-semibold">Statistics</h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               View platform stats (coming in Phase 5)
             </p>
           </div>

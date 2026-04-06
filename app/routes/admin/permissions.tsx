@@ -44,7 +44,7 @@ function PermissionsPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-bold">Publishing Permissions</h1>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           No publishable pages configured. Mark navigation links as
           "publishable" in Navigation Management first.
         </p>
@@ -55,32 +55,32 @@ function PermissionsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Publishing Permissions</h1>
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
         Control which roles can publish content to each page.
       </p>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="min-w-full divide-y">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto rounded-lg border dark:border-gray-700">
+        <table className="min-w-full divide-y dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                 Role
               </th>
               {pages.map((page: any) => (
                 <th
                   key={page.url}
-                  className="px-4 py-3 text-center text-xs font-medium text-gray-500"
+                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300"
                 >
                   {page.label}
                   <br />
-                  <span className="font-normal text-gray-400">
+                  <span className="font-normal text-gray-400 dark:text-gray-500">
                     {page.url}
                   </span>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y bg-white">
+          <tbody className="divide-y dark:divide-gray-700 bg-white dark:bg-gray-800">
             {MATRIX_ROLES.map((role) => {
               const isAdminRole = role === 'admin' || role === 'superadmin'
               return (

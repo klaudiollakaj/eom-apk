@@ -1,9 +1,16 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useSession, signOut } from '~/lib/auth-client'
 import { RoleBadge } from '~/components/ui/RoleBadge'
+import { getSession } from '~/server/fns/auth-helpers'
 import type { Role } from '~/lib/permissions'
 
 export const Route = createFileRoute('/negotiator')({
+  beforeLoad: async () => {
+    const session = await getSession()
+    if (!session) {
+      throw redirect({ to: '/login' })
+    }
+  },
   component: Page,
 })
 
@@ -12,7 +19,7 @@ function Page() {
   const session = useSession()
   const user = session.data?.user
 
-  if (!user) return null
+  if (!user) return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -21,7 +28,7 @@ function Page() {
         <div className="mt-2">
           <RoleBadge role={user.role as Role} />
         </div>
-        <p className="mt-4 text-gray-600">
+        <p className="mt-4 text-gray-600 dark:text-gray-400">
           Your dashboard is coming soon.
         </p>
         <button

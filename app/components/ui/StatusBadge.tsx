@@ -1,9 +1,9 @@
 type Status = 'active' | 'inactive' | 'suspended'
 
 const STATUS_STYLES: Record<Status, { bg: string; text: string; label: string }> = {
-  active: { bg: 'bg-green-100', text: 'text-green-800', label: 'Active' },
-  inactive: { bg: 'bg-red-100', text: 'text-red-800', label: 'Inactive' },
-  suspended: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Suspended' },
+  active: { bg: 'bg-green-100 dark:bg-green-900', text: 'text-green-800 dark:text-green-300', label: 'Active' },
+  inactive: { bg: 'bg-red-100 dark:bg-red-900', text: 'text-red-800 dark:text-red-300', label: 'Inactive' },
+  suspended: { bg: 'bg-amber-100 dark:bg-amber-900', text: 'text-amber-800 dark:text-amber-300', label: 'Suspended' },
 }
 
 export function StatusBadge({ status }: { status: Status }) {

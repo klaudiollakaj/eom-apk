@@ -79,7 +79,7 @@ function UsersPage() {
             setRoleFilter(e.target.value)
             setPage(1)
           }}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
         >
           <option value="">All Roles</option>
           {ROLES.map((r) => (
@@ -94,7 +94,7 @@ function UsersPage() {
             setStatusFilter(e.target.value)
             setPage(1)
           }}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
         >
           <option value="">All Status</option>
           <option value="active">Active</option>
@@ -177,10 +177,10 @@ function CreateUserForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border bg-gray-50 p-4 space-y-4"
+      className="rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4 space-y-4"
     >
       {error && (
-        <div className="rounded bg-red-50 p-2 text-sm text-red-700">
+        <div className="rounded bg-red-50 dark:bg-red-900/30 p-2 text-sm text-red-700 dark:text-red-400">
           {error}
         </div>
       )}
@@ -191,7 +191,7 @@ function CreateUserForm({
           onChange={(e) => setName(e.target.value)}
           placeholder="Full Name"
           required
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
         />
         <input
           type="email"
@@ -199,7 +199,7 @@ function CreateUserForm({
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
           required
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
         />
         <input
           type="password"
@@ -208,12 +208,12 @@ function CreateUserForm({
           placeholder="Password"
           required
           minLength={8}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
         />
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
         >
           {roles.map((r) => (
             <option key={r} value={r}>
@@ -266,7 +266,7 @@ function UserActions({
         <>
           <button
             onClick={() => setEditing(true)}
-            className="rounded bg-indigo-100 px-2 py-1 text-xs text-indigo-700"
+            className="rounded bg-indigo-100 dark:bg-indigo-900 px-2 py-1 text-xs text-indigo-700 dark:text-indigo-300"
           >
             Edit
           </button>
@@ -279,8 +279,8 @@ function UserActions({
             }}
             className={`rounded px-2 py-1 text-xs ${
               user.isActive
-                ? 'bg-red-100 text-red-700'
-                : 'bg-green-100 text-green-700'
+                ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400'
+                : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400'
             }`}
           >
             {user.isActive ? 'Deactivate' : 'Activate'}
@@ -300,8 +300,8 @@ function UserActions({
                 }}
                 className={`rounded px-2 py-1 text-xs ${
                   user.isSuspended
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-amber-100 text-amber-700'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400'
+                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-400'
                 }`}
               >
                 {user.isSuspended ? 'Resume' : 'Suspend'}
@@ -311,7 +311,7 @@ function UserActions({
           {(user.role === 'staff' || user.role === 'admin') && (
             <Link
               to={`/admin/users/${user.id}/caps`}
-              className="rounded bg-purple-100 px-2 py-1 text-xs text-purple-700"
+              className="rounded bg-purple-100 dark:bg-purple-900 px-2 py-1 text-xs text-purple-700 dark:text-purple-300"
             >
               Capabilities
             </Link>
@@ -357,24 +357,24 @@ function EditUserForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
       {error && (
-        <p className="text-xs text-red-600">{error}</p>
+        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
       )}
       <input
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full rounded border px-2 py-1 text-xs"
+        className="w-full rounded border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-xs"
       />
       <input
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full rounded border px-2 py-1 text-xs"
+        className="w-full rounded border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-xs"
       />
       <select
         value={role}
         onChange={(e) => setRole(e.target.value)}
-        className="w-full rounded border px-2 py-1 text-xs"
+        className="w-full rounded border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-xs"
       >
         {editableRoles.map((r) => (
           <option key={r} value={r}>{r}</option>
@@ -391,7 +391,7 @@ function EditUserForm({
         <button
           type="button"
           onClick={onDone}
-          className="rounded border px-2 py-1 text-xs"
+          className="rounded border dark:border-gray-600 px-2 py-1 text-xs dark:text-gray-300"
         >
           Cancel
         </button>

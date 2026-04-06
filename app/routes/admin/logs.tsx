@@ -46,7 +46,7 @@ function LogsPage() {
         <select
           value={action}
           onChange={(e) => { setAction(e.target.value); setPage(1) }}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
         >
           <option value="">All Actions</option>
           {LOG_ACTIONS.map((a) => (
@@ -57,14 +57,14 @@ function LogsPage() {
           type="date"
           value={dateFrom}
           onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
           placeholder="From"
         />
         <input
           type="date"
           value={dateTo}
           onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
-          className="rounded-md border px-3 py-2 text-sm"
+          className="rounded-md border dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
           placeholder="To"
         />
       </div>
@@ -86,7 +86,7 @@ function LogsPage() {
             key: 'details',
             header: 'Details',
             render: (row: any) => (
-              <pre className="max-w-xs truncate text-xs text-gray-500">
+              <pre className="max-w-xs truncate text-xs text-gray-500 dark:text-gray-400">
                 {row.details ? JSON.stringify(row.details) : '\u2014'}
               </pre>
             ),
