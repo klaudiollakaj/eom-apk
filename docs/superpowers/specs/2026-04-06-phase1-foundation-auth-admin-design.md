@@ -148,8 +148,7 @@ BETTER_AUTH_URL=http://localhost:3000
 SUPERADMIN_EMAIL=
 SUPERADMIN_PASSWORD=
 
-# Email (dev — Mailpit)
-EMAIL_TRANSPORT=smtp
+# Email (dev — Mailpit SMTP; replaced by Resend in Phase 7)
 SMTP_HOST=localhost
 SMTP_PORT=1025
 EMAIL_FROM=noreply@eom.local
@@ -176,6 +175,8 @@ Seeds core navigation links (Home, Events, News, FAQ, Login) as default header/f
 | Package | Type | Purpose |
 |---|---|---|
 | `postgres` | runtime | PostgreSQL client (postgres.js) |
+| `nodemailer` | runtime | SMTP email sending (dev via Mailpit, replaced by Resend in Phase 7) |
+| `@types/nodemailer` | devDependency | TypeScript types for nodemailer |
 | `@inquirer/prompts` | devDependency | Interactive CLI prompts for seeder |
 
 ### 1.7 Dependencies to Remove
@@ -202,13 +203,22 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      // Phase 1: log to console in dev. Resend integration in Phase 7.
-      console.log(`Password reset for ${user.email}: ${url}`)
+      // In dev: sends via Mailpit SMTP (localhost:1025)
+      // Uses SMTP_HOST, SMTP_PORT, EMAIL_FROM env vars
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your password',
+        text: `Reset your password: ${url}`,
+      })
     },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      console.log(`Verify email for ${user.email}: ${url}`)
+      await sendEmail({
+        to: user.email,
+        subject: 'Verify your email',
+        text: `Verify your email: ${url}`,
+      })
     },
   },
   user: {
@@ -226,10 +236,24 @@ export const auth = betterAuth({
     },
   },
   plugins: [admin()],
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const user = await db.query.users.findFirst({
+            where: eq(users.id, session.userId),
+          })
+          if (!user?.isActive) {
+            throw new APIError('FORBIDDEN', { message: 'ACCOUNT_DEACTIVATED' })
+          }
+        },
+      },
+    },
+  },
 })
 ```
 
-**Sign-in hook:** Before creating a session, check `user.isActive`. If `false`, reject with error `ACCOUNT_DEACTIVATED`.
+**Sign-in blocking for deactivated users:** Uses Better Auth's `databaseHooks.session.create.before` hook. Before any session is created, the hook queries the user by ID and checks `isActive`. If `false`, it throws `APIError('FORBIDDEN', { message: 'ACCOUNT_DEACTIVATED' })`, which prevents the session from being created. The login page checks for this error code and displays "Your account has been deactivated. Contact support."
 
 ### 2.2 Roles
 
@@ -265,6 +289,7 @@ export const auth = betterAuth({
 
 **Registration behaviour:**
 - Creates user with `role: 'user'`, `isActive: true`, `emailVerified: false`
+- Creates an empty `user_profiles` row (same as admin-created users)
 - Redirects to `/verify-email`
 
 ### 2.4 Auth Client (`app/lib/auth-client.ts`)
@@ -273,7 +298,32 @@ Exports: `signIn`, `signUp`, `signOut`, `useSession`
 
 Add `useRole()` helper that derives role from session for conditional UI rendering.
 
-### 2.5 Permissions Helper (`app/lib/permissions.ts`)
+### 2.5 Email Helper (`app/lib/email.ts`)
+
+Phase 1 uses a simple SMTP-based `sendEmail` function that sends plain-text emails via Mailpit in development. This will be replaced with Resend + React Email templates in Phase 7.
+
+```typescript
+import { createTransport } from 'nodemailer'
+
+const transporter = createTransport({
+  host: process.env.SMTP_HOST || 'localhost',
+  port: Number(process.env.SMTP_PORT || 1025),
+  secure: false,
+})
+
+export async function sendEmail({ to, subject, text }: {
+  to: string; subject: string; text: string
+}) {
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || 'noreply@eom.local',
+    to, subject, text,
+  })
+}
+```
+
+**New dependency:** `nodemailer` (runtime) + `@types/nodemailer` (devDependency)
+
+### 2.6 Permissions Helper (`app/lib/permissions.ts`)
 
 ```typescript
 type Role = 'user' | 'organizer' | 'distributor' | 'sponsor' | 'negotiator' |
@@ -287,6 +337,38 @@ export function isAdmin(role: Role): boolean {
 
 export function isSuperadmin(role: Role): boolean {
   return role === 'superadmin'
+}
+```
+
+**Route-level protection** uses TanStack Router's `beforeLoad` guard on protected routes:
+
+```typescript
+// Admin layout route (app/routes/admin/route.tsx)
+export const Route = createFileRoute('/admin')({
+  beforeLoad: async ({ context }) => {
+    const session = await getSession()
+    if (!session || !isAdmin(session.user.role)) {
+      throw redirect({ to: '/login' })
+    }
+  },
+})
+```
+
+Each role-specific dashboard route uses the same pattern, checking for the appropriate role. Unauthenticated users are redirected to `/login`. Authenticated users with the wrong role are redirected to their own dashboard.
+
+**Server function protection:** Every server function that requires auth calls a shared `requireAuth()` helper that returns the session or throws. Role-specific functions additionally check the role:
+
+```typescript
+async function requireAuth() {
+  const session = await auth.api.getSession({ headers: getHeaders() })
+  if (!session) throw new Error('UNAUTHORIZED')
+  return session
+}
+
+async function requireAdmin() {
+  const session = await requireAuth()
+  if (!isAdmin(session.user.role)) throw new Error('FORBIDDEN')
+  return session
 }
 ```
 
@@ -360,10 +442,10 @@ bio             text        nullable
 dateOfBirth     date        nullable
 location        text        nullable
 avatarUrl       text        nullable
-companyName     text        nullable
-nipt            text        nullable
-qkb             text        nullable
-operatingField  text        nullable
+companyName     text        nullable (for business roles)
+nipt            text        nullable (NIPT — Albanian tax ID, for Distributor/Sponsor)
+qkb             text        nullable (QKB — Albanian business registration number, for Distributor)
+operatingField  text        nullable (for Sponsor, Service Provider, Marketing Agency)
 createdAt       timestamp   not null, defaultNow()
 updatedAt       timestamp   not null, defaultNow()
 ```
@@ -380,7 +462,7 @@ createdAt       timestamp   not null, defaultNow()
 
 Phase 1 tracked actions:
 - `user_created`, `user_updated`, `role_changed`
-- `user_activated`, `user_deactivated`
+- `user_activated`, `user_deactivated`, `user_deleted`
 - `login`, `logout`, `password_reset`
 - `permission_changed`
 - `nav_link_created`, `nav_link_updated`, `nav_link_deleted`
@@ -470,6 +552,10 @@ Overview cards showing:
 - Create/edit Admin accounts
 - Delete users permanently
 
+**Self-protection rules:**
+- Users cannot deactivate, delete, or demote their own account
+- The last remaining superadmin account cannot be deleted, deactivated, or demoted — server functions check the superadmin count before allowing these operations and reject with error `LAST_SUPERADMIN` if only one remains
+
 **Server functions (`app/server/fns/admin.ts`):**
 
 `listUsers({ page, perPage, search, roleFilter, statusFilter })`
@@ -510,6 +596,7 @@ Overview cards showing:
 
 `bulkDeleteUsers({ userIds })`
 - Superadmin only
+- For each user: logs `user_deleted` with `userId: null` and deleted user info in `details` (same pattern as single `deleteUser`)
 
 ### 4.4 Activity Logs (`/admin/logs`)
 
@@ -539,13 +626,11 @@ Overview cards showing:
 **Core links seeded by `scripts/seed-navigation.ts`:**
 | Label | URL | Position | isDeletable |
 |---|---|---|---|
-| Home | `/` | header | false |
-| Events | `/events` | header | false |
+| Home | `/` | both | false |
+| Events | `/events` | both | false |
 | News | `/posts` | header | false |
 | FAQ | `/faq` | header | false |
 | Login | `/login` | header | false |
-| Home | `/` | footer | false |
-| Events | `/events` | footer | false |
 | Contact | `/contact` | footer | false |
 
 Core links can be hidden (`isVisible = false`) but not deleted.
@@ -576,7 +661,9 @@ Core links can be hidden (`isVisible = false`) but not deleted.
 ### 4.6 Publishing Permissions (`/admin/permissions`)
 
 **UI:**
-- Matrix view: rows = roles (all 9), columns = public pages (derived from internal `navigation_links`)
+- Matrix view: rows = roles (all 9), columns = publishable pages
+- **Publishable pages** are internal `navigation_links` entries (not external URLs) excluding utility routes like `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`. Specifically, pages where users can create content — e.g., `/posts` (News), `/events` (Events). As new content pages are added in later phases, they become eligible target pages.
+- **Phase 1 state:** The matrix will show `/posts` and `/events` as target pages (seeded by `seed-navigation.ts`). Permissions can be configured now even though the actual post/event creation UI is built in Phase 2+. The UI shows an empty state message ("No publishable pages configured") if no eligible pages exist.
 - Each cell is a checkbox toggle
 - Changes save immediately (optimistic UI)
 - Admin/Superadmin row shows all checked and disabled (always have access)
@@ -654,7 +741,7 @@ Routes created as placeholders:
 - `/negotiator` (Negotiator)
 - `/service-provider` (Service Provider)
 - `/marketing` (Marketing Agency)
-- `/profile` (shared — all roles)
+- `/profile` (shared — all roles, built out in Phase 4: Business Profiles)
 
 ### 5.5 Shared Components
 
@@ -690,6 +777,7 @@ app/
 │   ├── auth.ts
 │   ├── auth-client.ts
 │   ├── db.ts
+│   ├── email.ts
 │   ├── schema.ts
 │   └── permissions.ts
 ├── server/
@@ -748,7 +836,7 @@ Dockerfile
 
 1. **Infrastructure** — Docker Compose, remove SQLite, add postgres.js, update drizzle config, create `.env.example`
 2. **Schema** — Write `app/lib/schema.ts` with all Phase 1 tables, generate Drizzle migration
-3. **Auth** — Configure Better Auth with 9 roles + `isActive`, auth routes (login, register, forgot-password, reset-password, verify-email)
+3. **Auth** — Configure Better Auth with 9 roles + `isActive`, `email.ts` helper (nodemailer/SMTP), `auth-client.ts` with `useRole()`, auth routes (login, register, forgot-password, reset-password, verify-email)
 4. **Scripts** — `migrate.ts`, `seed-superadmin.ts`, `seed-navigation.ts`
 5. **Permissions helper** — `app/lib/permissions.ts` with role checking functions
 6. **Shared components** — Header, Footer, AdminSidebar, DataTable, RoleBadge, UserDropdown
@@ -775,8 +863,7 @@ BETTER_AUTH_URL=http://localhost:3000
 SUPERADMIN_EMAIL=
 SUPERADMIN_PASSWORD=
 
-# Email (dev — Mailpit)
-EMAIL_TRANSPORT=smtp
+# Email (dev — Mailpit SMTP; replaced by Resend in Phase 7)
 SMTP_HOST=localhost
 SMTP_PORT=1025
 EMAIL_FROM=noreply@eom.local
