@@ -5,11 +5,15 @@ import { getNavLinks } from '~/server/fns/navigation'
 
 export const Route = createFileRoute('/events/$eventId')({
   loader: async () => {
-    const [headerLinks, footerLinks] = await Promise.all([
-      getNavLinks({ data: { position: 'header' } }),
-      getNavLinks({ data: { position: 'footer' } }),
-    ])
-    return { headerLinks, footerLinks }
+    try {
+      const [headerLinks, footerLinks] = await Promise.all([
+        getNavLinks({ data: { position: 'header' } }),
+        getNavLinks({ data: { position: 'footer' } }),
+      ])
+      return { headerLinks, footerLinks }
+    } catch {
+      return { headerLinks: [], footerLinks: [] }
+    }
   },
   component: EventDetailPage,
 })
@@ -19,28 +23,28 @@ function EventDetailPage() {
   const { headerLinks, footerLinks } = Route.useLoaderData()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header links={headerLinks} />
 
       <div className="mx-auto max-w-4xl px-6 py-10">
         {/* Event Banner */}
-        <div className="h-64 rounded-xl bg-gray-200" />
+        <div className="h-64 rounded-xl bg-gray-200 dark:bg-gray-700" />
 
         <h1 className="mt-6 text-3xl font-bold">Event #{eventId}</h1>
 
-        <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600">
+        <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
           <span className="flex items-center gap-1">Date: TBD</span>
           <span className="flex items-center gap-1">Location: TBD</span>
           <span className="flex items-center gap-1">Category: TBD</span>
         </div>
 
-        <p className="mt-6 text-gray-700">
+        <p className="mt-6 text-gray-700 dark:text-gray-300">
           Event description will appear here. Includes banner, details, date,
           location with map integration, and Pay-Per-View links when available.
         </p>
 
         {/* Map Placeholder */}
-        <div className="mt-6 h-48 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400">
+        <div className="mt-6 h-48 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400 dark:bg-gray-700 dark:text-gray-500">
           Google Maps Integration
         </div>
 

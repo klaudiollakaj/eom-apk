@@ -5,11 +5,15 @@ import { getNavLinks } from '~/server/fns/navigation'
 
 export const Route = createFileRoute('/')({
   loader: async () => {
-    const [headerLinks, footerLinks] = await Promise.all([
-      getNavLinks({ data: { position: 'header' } }),
-      getNavLinks({ data: { position: 'footer' } }),
-    ])
-    return { headerLinks, footerLinks }
+    try {
+      const [headerLinks, footerLinks] = await Promise.all([
+        getNavLinks({ data: { position: 'header' } }),
+        getNavLinks({ data: { position: 'footer' } }),
+      ])
+      return { headerLinks, footerLinks }
+    } catch {
+      return { headerLinks: [], footerLinks: [] }
+    }
   },
   component: Home,
 })

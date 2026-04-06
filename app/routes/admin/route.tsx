@@ -15,8 +15,12 @@ export const Route = createFileRoute('/admin')({
     }
   },
   loader: async () => {
-    const result = await getMyCapabilities()
-    return { capabilities: result.all ? 'all' : result.capabilities }
+    try {
+      const result = await getMyCapabilities()
+      return { capabilities: result.all ? 'all' : result.capabilities }
+    } catch {
+      return { capabilities: [] }
+    }
   },
   component: AdminLayout,
 })

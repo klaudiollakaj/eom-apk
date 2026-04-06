@@ -5,11 +5,15 @@ import { getNavLinks } from '~/server/fns/navigation'
 
 export const Route = createFileRoute('/events/')({
   loader: async () => {
-    const [headerLinks, footerLinks] = await Promise.all([
-      getNavLinks({ data: { position: 'header' } }),
-      getNavLinks({ data: { position: 'footer' } }),
-    ])
-    return { headerLinks, footerLinks }
+    try {
+      const [headerLinks, footerLinks] = await Promise.all([
+        getNavLinks({ data: { position: 'header' } }),
+        getNavLinks({ data: { position: 'footer' } }),
+      ])
+      return { headerLinks, footerLinks }
+    } catch {
+      return { headerLinks: [], footerLinks: [] }
+    }
   },
   component: EventsPage,
 })
@@ -18,12 +22,12 @@ function EventsPage() {
   const { headerLinks, footerLinks } = Route.useLoaderData()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header links={headerLinks} />
 
       <div className="mx-auto max-w-7xl px-6 py-10">
         <h1 className="text-3xl font-bold">All Events</h1>
-        <p className="mt-2 text-gray-600">
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Browse upcoming festivals, concerts, and events
         </p>
 
@@ -32,28 +36,28 @@ function EventsPage() {
           <button className="rounded-full bg-indigo-600 px-4 py-1.5 text-sm text-white">
             All
           </button>
-          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50">
+          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
             Available
           </button>
-          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50">
+          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
             Coming Soon
           </button>
-          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50">
+          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
             Sold Out
           </button>
         </div>
 
         {/* Events Grid */}
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-            <div className="relative h-48 bg-gray-200">
+          <div className="rounded-xl border bg-white shadow-sm overflow-hidden dark:border-gray-700 dark:bg-gray-800">
+            <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
               <span className="absolute left-3 top-3 rounded-full bg-green-500 px-3 py-1 text-xs font-medium text-white">
                 Available
               </span>
             </div>
             <div className="p-5">
               <h3 className="text-lg font-semibold">Sample Event</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Events will be listed here once published by organizers.
               </p>
               <Link
