@@ -1,13 +1,13 @@
 # EOM Phase 1 — Foundation + Auth + Admin
 **Date:** 2026-04-06
 **Status:** Approved
-**Scope:** Project scaffold, authentication with 9 roles, admin panel, dynamic navigation, publishing permissions
+**Scope:** Project scaffold, authentication with 10 roles, admin panel with granular capabilities, dynamic navigation, publishing permissions, work suspension
 
 ---
 
 ## Overview
 
-Bootstrap the EOM platform from the existing TanStack Start scaffold. Replace SQLite with PostgreSQL, configure Better Auth with 9 user roles, build the admin panel (user management, logs, navigation, publishing permissions), and establish layouts/routing for all roles.
+Bootstrap the EOM platform from the existing TanStack Start scaffold. Replace SQLite with PostgreSQL, configure Better Auth with 10 user roles, build the admin panel (user management, logs, navigation, publishing permissions, capability management, work suspension), and establish layouts/routing for all roles.
 
 This is Phase 1 of 8 in the EOM MVP-first build plan:
 1. **Foundation + Auth + Admin** ← this spec
@@ -233,6 +233,11 @@ export const auth = betterAuth({
         defaultValue: true,
         input: false,
       },
+      isSuspended: {
+        type: 'boolean',
+        defaultValue: false,
+        input: false,
+      },
     },
   },
   plugins: [admin()],
@@ -257,7 +262,7 @@ export const auth = betterAuth({
 
 ### 2.2 Roles
 
-9 roles stored as text on the `users` table:
+10 roles stored as text on the `users` table:
 
 | Role | Value | Created By |
 |---|---|---|
@@ -268,6 +273,7 @@ export const auth = betterAuth({
 | Negotiator | `negotiator` | Admin/Superadmin |
 | Service Provider | `service_provider` | Admin/Superadmin |
 | Marketing Agency | `marketing_agency` | Admin/Superadmin |
+| EOM Staff | `staff` | Admin/Superadmin |
 | Admin | `admin` | Superadmin only |
 | Superadmin | `superadmin` | Seeder script only |
 
@@ -327,7 +333,7 @@ export async function sendEmail({ to, subject, text }: {
 
 ```typescript
 type Role = 'user' | 'organizer' | 'distributor' | 'sponsor' | 'negotiator' |
-            'service_provider' | 'marketing_agency' | 'admin' | 'superadmin'
+            'service_provider' | 'marketing_agency' | 'staff' | 'admin' | 'superadmin'
 
 const ADMIN_ROLES: Role[] = ['admin', 'superadmin']
 
@@ -389,6 +395,7 @@ emailVerified   boolean     not null, default false
 image           text        nullable
 role            text        not null, default 'user'
 isActive        boolean     not null, default true
+isSuspended     boolean     not null, default false
 createdAt       timestamp   not null, defaultNow()
 updatedAt       timestamp   not null, defaultNow()
 ```
@@ -463,8 +470,10 @@ createdAt       timestamp   not null, defaultNow()
 Phase 1 tracked actions:
 - `user_created`, `user_updated`, `role_changed`
 - `user_activated`, `user_deactivated`, `user_deleted`
+- `user_suspended`, `user_resumed`
 - `login`, `logout`, `password_reset`
 - `permission_changed`
+- `capability_granted`, `capability_revoked`
 - `nav_link_created`, `nav_link_updated`, `nav_link_deleted`
 
 **`navigation_links`**
@@ -477,6 +486,7 @@ sortOrder       integer     not null
 isVisible       boolean     not null, default true
 isExternal      boolean     not null, default false
 isDeletable     boolean     not null, default true (false for core links)
+isPublishable   boolean     not null, default false (true for content pages like /posts, /events)
 createdAt       timestamp   not null, defaultNow()
 updatedAt       timestamp   not null, defaultNow()
 ```
@@ -494,6 +504,109 @@ updatedAt       timestamp   not null, defaultNow()
 UNIQUE(role, targetPage)
 ```
 
+**`user_capabilities`** — Granular per-user capability assignments for Staff and Admin roles:
+```
+id              text        PK (crypto.randomUUID())
+userId          text        not null, FK → users.id ON DELETE CASCADE
+capability      text        not null (capability key — see capability registry below)
+granted         boolean     not null, default true
+grantedBy       text        nullable, FK → users.id ON DELETE SET NULL
+createdAt       timestamp   not null, defaultNow()
+updatedAt       timestamp   not null, defaultNow()
+
+UNIQUE(userId, capability)
+```
+
+**Capability registry:**
+
+Capabilities are string keys organized by category. New capabilities can be added in later phases.
+
+| Category | Capability Key | Description | Applicable Roles |
+|---|---|---|---|
+| **Public Pages** | `pages:edit:<slug>` | Edit content on a specific public page (e.g., `pages:edit:faq`) | Staff |
+| **Economics** | `economics:view` | View financial data (revenue, sales, invoices) | Staff |
+| **Economics** | `economics:export` | Export financial reports | Staff |
+| **Statistics** | `stats:view` | View platform statistics (user counts, events, etc.) | Staff |
+| **Statistics** | `stats:export` | Export statistics reports | Staff |
+| **Admin** | `admin:users:manage` | Create/edit/deactivate users | Admin |
+| **Admin** | `admin:users:delete` | Permanently delete users | Admin |
+| **Admin** | `admin:logs:view` | View activity logs | Admin |
+| **Admin** | `admin:navigation:manage` | Manage header/footer navigation | Admin |
+| **Admin** | `admin:permissions:manage` | Manage publishing permissions matrix | Admin |
+| **Admin** | `admin:capabilities:manage` | Assign/revoke capabilities for Staff | Admin |
+| **Admin** | `admin:suspend:manage` | Suspend/resume business role users | Admin |
+| **Admin** | `admin:ads:manage` | Manage ads and paid placements (Phase 7) | Admin |
+| **Admin** | `admin:coupons:manage` | Manage coupon codes (Phase 5) | Admin |
+| **Admin** | `admin:viewer:access` | Read-only login as other users (Phase 7) | Admin |
+
+**How it works:**
+- **Superadmin** has ALL capabilities implicitly — never checked against `user_capabilities`. Superadmin is the only role that can assign/revoke Admin capabilities.
+- **Admin** capabilities are assigned per-user by Superadmin. An Admin without `admin:users:manage` cannot access the user management page.
+- **Staff** capabilities are assigned per-user by Admin (with `admin:capabilities:manage`) or Superadmin.
+- Server functions check capabilities via a helper: `await requireCapability(session, 'admin:users:manage')`
+
+**Capability check helper (`app/lib/permissions.ts`):**
+```typescript
+export async function hasCapability(userId: string, role: Role, capability: string): Promise<boolean> {
+  if (role === 'superadmin') return true
+  const record = await db.query.userCapabilities.findFirst({
+    where: and(
+      eq(userCapabilities.userId, userId),
+      eq(userCapabilities.capability, capability),
+      eq(userCapabilities.granted, true),
+    ),
+  })
+  return !!record
+}
+
+export async function requireCapability(session: Session, capability: string) {
+  const has = await hasCapability(session.user.id, session.user.role, capability)
+  if (!has) throw new Error('FORBIDDEN')
+}
+```
+
+---
+
+### 3.3 Work Suspension System
+
+**Purpose:** Admin can suspend a business role user's ability to start new work without deactivating their account. The user can still log in and finish existing in-progress tasks, but cannot initiate anything new.
+
+**Affected roles:** `organizer`, `distributor`, `sponsor`, `service_provider`, `marketing_agency`, `negotiator`
+
+**Not applicable to:** `user`, `staff`, `admin`, `superadmin` (these roles use `isActive` toggle instead)
+
+**How it works:**
+- `users.isSuspended` boolean field (default `false`)
+- Admin (with `admin:suspend:manage` capability) or Superadmin can toggle suspension
+- Suspended users see a yellow banner on their dashboard: "Your account is currently suspended. You can complete existing work but cannot start new tasks. Contact your administrator for more information."
+
+**Suspension enforcement (in later phases):**
+When a suspended user tries to create new work, server functions check `isSuspended` and reject with error `ACCOUNT_SUSPENDED`. Specifically:
+- Cannot create new events (Phase 2)
+- Cannot send new applications/requests (Phase 4)
+- Cannot accept new incoming requests (Phase 4)
+- Cannot start new negotiation rounds on requests they didn't initiate (Phase 3)
+- Cannot generate new referral codes (Phase 7)
+
+**What suspended users CAN do:**
+- Log in and view their dashboard
+- Continue/complete ongoing negotiations already in progress
+- Finish editing draft events already created
+- View their history, archive, and profile
+- Update their profile information
+
+**Server functions (added to `app/server/fns/admin.ts`):**
+
+`toggleSuspension({ userId, suspended })`
+- Requires `admin:suspend:manage` capability or Superadmin
+- Cannot suspend Admin, Superadmin, Staff, or User roles — returns error `INVALID_ROLE_FOR_SUSPENSION`
+- Sets `isSuspended` on user
+- Logs `user_suspended` or `user_resumed` to `user_logs`
+
+**Logged actions:**
+- `user_suspended` — when suspension is enabled
+- `user_resumed` — when suspension is lifted
+
 ---
 
 ## 4. Admin Panel
@@ -502,17 +615,33 @@ UNIQUE(role, targetPage)
 
 **Route structure:**
 ```
-/admin              → Dashboard overview
-/admin/users        → User management
-/admin/logs         → Activity logs
-/admin/navigation   → Header/footer link management
-/admin/permissions  → Publishing permissions matrix
+/admin                → Dashboard overview
+/admin/users          → User management
+/admin/users/:id/caps → Per-user capability management
+/admin/logs           → Activity logs
+/admin/navigation     → Header/footer link management
+/admin/permissions    → Publishing permissions matrix
+/admin/capabilities   → Capability overview (all users with assigned capabilities)
 ```
 
 **Layout:**
-- Sidebar navigation: Dashboard, Users, Logs, Navigation, Permissions
+- Sidebar navigation: Dashboard, Users, Logs, Navigation, Permissions, Capabilities
 - Top bar: breadcrumb path, admin user info, logout button
-- Access restricted to `admin` and `superadmin` roles
+- Access: Superadmin sees all sidebar items. Admin sees only items matching their assigned capabilities. Items without the required capability are hidden.
+- A newly created Admin with no capabilities sees only the Dashboard (which shows a "Contact your Superadmin to get access" message)
+
+**Capability-gated access convention:** Throughout this spec, "Admin+ only" on a server function means: Superadmin always has access (bypasses all checks). For Admin role, access requires the corresponding capability from the registry (Section 3.2). The mapping:
+| Admin Route/Function | Required Capability |
+|---|---|
+| User management (CRUD, status) | `admin:users:manage` |
+| User deletion | `admin:users:delete` |
+| Activity logs | `admin:logs:view` |
+| Navigation management | `admin:navigation:manage` |
+| Publishing permissions | `admin:permissions:manage` |
+| Capability management | `admin:capabilities:manage` |
+| Work suspension | `admin:suspend:manage` |
+
+Every server function described as "Admin+ only" MUST call `requireCapability(session, '<key>')` instead of just `isAdmin()`. This ensures granular access control.
 
 ### 4.2 Dashboard (`/admin`)
 
@@ -525,8 +654,8 @@ Overview cards showing:
 ### 4.3 User Management (`/admin/users`)
 
 **List view:**
-- Table columns: Name, Email, Role, Status (active/inactive), Created date
-- Filters: by role (dropdown), by status (active/inactive/all)
+- Table columns: Name, Email, Role, Status (active/inactive/suspended), Created date
+- Filters: by role (dropdown), by status (active/inactive/suspended/all)
 - Search: by name or email
 - Pagination: 20 per page
 
@@ -539,8 +668,11 @@ Overview cards showing:
 **Edit user:**
 - Change name, email, role
 - Toggle active/inactive status
+- Toggle suspended/active for business roles (Organizer, Distributor, Sponsor, Service Provider, Marketing Agency, Negotiator)
+- "Manage Capabilities" link → `/admin/users/:id/caps` (for Staff and Admin users)
 - Role changes logged as `role_changed`
 - Status changes logged as `user_activated` or `user_deactivated`
+- Suspension changes logged as `user_suspended` or `user_resumed`
 
 **Bulk actions:**
 - Select multiple users via checkboxes
@@ -618,7 +750,7 @@ Overview cards showing:
 **UI:**
 - Two sections: "Header Links" and "Footer Links"
 - Each link shows: label, URL, visibility toggle, sort order, external badge
-- Add new link button → form with label, URL, position (header/footer/both), sort order, isExternal
+- Add new link button → form with label, URL, position (header/footer/both), sort order, isExternal, isPublishable
 - Edit existing link → same form
 - Delete link (disabled for core links where `isDeletable = false`)
 - Reorder via sort order number field
@@ -626,12 +758,14 @@ Overview cards showing:
 **Core links seeded by `scripts/seed-navigation.ts`:**
 | Label | URL | Position | isDeletable |
 |---|---|---|---|
-| Home | `/` | both | false |
-| Events | `/events` | both | false |
-| News | `/posts` | header | false |
-| FAQ | `/faq` | header | false |
-| Login | `/login` | header | false |
-| Contact | `/contact` | footer | false |
+| Label | URL | Position | isDeletable | isPublishable |
+|---|---|---|---|---|
+| Home | `/` | both | false | false |
+| Events | `/events` | both | false | true |
+| News | `/posts` | header | false | true |
+| FAQ | `/faq` | header | false | false |
+| Login | `/login` | header | false | false |
+| Contact | `/contact` | footer | false | false |
 
 Core links can be hidden (`isVisible = false`) but not deleted.
 
@@ -645,11 +779,11 @@ Core links can be hidden (`isVisible = false`) but not deleted.
 - Admin+ only
 - Returns all links including hidden ones
 
-`createNavLink({ label, url, position, sortOrder, isExternal })`
+`createNavLink({ label, url, position, sortOrder, isExternal, isPublishable })`
 - Admin+ only
 - Logs `nav_link_created`
 
-`updateNavLink({ id, label, url, position, sortOrder, isVisible, isExternal })`
+`updateNavLink({ id, label, url, position, sortOrder, isVisible, isExternal, isPublishable })`
 - Admin+ only
 - Logs `nav_link_updated`
 
@@ -661,9 +795,9 @@ Core links can be hidden (`isVisible = false`) but not deleted.
 ### 4.6 Publishing Permissions (`/admin/permissions`)
 
 **UI:**
-- Matrix view: rows = roles (all 9), columns = publishable pages
-- **Publishable pages** are internal `navigation_links` entries (not external URLs) excluding utility routes like `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`. Specifically, pages where users can create content — e.g., `/posts` (News), `/events` (Events). As new content pages are added in later phases, they become eligible target pages.
-- **Phase 1 state:** The matrix will show `/posts` and `/events` as target pages (seeded by `seed-navigation.ts`). Permissions can be configured now even though the actual post/event creation UI is built in Phase 2+. The UI shows an empty state message ("No publishable pages configured") if no eligible pages exist.
+- Matrix view: rows = roles (all 10), columns = publishable pages
+- **Publishable pages** are `navigation_links` entries where `isPublishable = true`. This explicit flag avoids ambiguity about which pages support content creation. Admin can toggle `isPublishable` when managing navigation links.
+- **Phase 1 state:** The seeder sets `isPublishable = true` for `/posts` (News) and `/events` (Events). These appear in the matrix even though the actual post/event creation UI is built in Phase 2+. The UI shows an empty state message ("No publishable pages configured") if no links have `isPublishable = true`.
 - Each cell is a checkbox toggle
 - Changes save immediately (optimistic UI)
 - Admin/Superadmin row shows all checked and disabled (always have access)
@@ -684,6 +818,69 @@ Core links can be hidden (`isVisible = false`) but not deleted.
 - Authenticated (any role)
 - Returns pages the current user's role can publish to
 - Admin/Superadmin always returns all internal pages
+
+### 4.7 Capability Management (`/admin/users/:id/caps`)
+
+**Per-user capability assignment page.** Accessed from the user list via "Manage Capabilities" link. Only shown for Staff and Admin role users.
+
+**UI:**
+- User info header (name, email, role)
+- Grouped capability list organized by category (Public Pages, Economics, Statistics, Admin)
+- Each capability has a toggle switch (granted / not granted)
+- For Staff users: shows Staff-applicable capabilities (pages, economics, stats)
+- For Admin users: shows Admin-applicable capabilities (all `admin:*` keys). **Only Superadmin can access this page for Admin users** — if an Admin tries to manage another Admin's capabilities, they are blocked.
+- Changes save immediately (optimistic UI)
+- Each toggle change logs `capability_granted` or `capability_revoked` to `user_logs`
+
+**Page-specific capabilities:**
+For `pages:edit:<slug>` capabilities, the list is dynamically generated from internal `navigation_links`. Each internal page gets its own toggle (e.g., `pages:edit:faq`, `pages:edit:posts`, `pages:edit:events`).
+
+**Server functions (`app/server/fns/capabilities.ts`):**
+
+`getUserCapabilities({ userId })`
+- Admin (with `admin:capabilities:manage`) or Superadmin
+- For Admin users: Superadmin only
+- Returns all `user_capabilities` rows for this user
+
+`updateUserCapability({ userId, capability, granted })`
+- Admin (with `admin:capabilities:manage`) or Superadmin
+- For Admin users: Superadmin only
+- Upserts the capability record
+- Logs `capability_granted` or `capability_revoked` with `{ userId, capability }` in details
+- Validates that the capability key is from the registry (rejects unknown keys)
+
+`getMyCapabilities()`
+- Authenticated (any role)
+- Superadmin returns all capabilities as granted
+- Others return their `user_capabilities` rows where `granted = true`
+
+### 4.8 Capability Overview (`/admin/capabilities`)
+
+**Summary page showing all users who have assigned capabilities.**
+
+**UI:**
+- Table: User Name, Email, Role, Number of Capabilities, "Manage" link
+- Filterable by role (Staff / Admin)
+- Quick view: expanding a row shows the list of granted capabilities
+- Requires `admin:capabilities:manage` capability or Superadmin
+
+**Server functions (added to `app/server/fns/capabilities.ts`):**
+
+`listUsersWithCapabilities({ roleFilter })`
+- Admin (with `admin:capabilities:manage`) or Superadmin
+- Returns users with at least one capability row, with capability count
+- For Admin users in results: only shown to Superadmin
+
+### 4.9 Work Suspension (`/admin/users`)
+
+Suspension is managed from the user list (Section 4.3) — not a separate page. For business role users, the edit panel shows a "Suspend Work" / "Resume Work" toggle in addition to the active/inactive toggle.
+
+**Visual indicators on user list:**
+- Active: green badge
+- Inactive: red badge
+- Suspended: yellow/amber badge with "Suspended" text
+
+**Server function** `toggleSuspension` is defined in Section 3.3.
 
 ---
 
@@ -722,6 +919,7 @@ After login, users are redirected based on role:
 | `negotiator` | `/negotiator` |
 | `service_provider` | `/service-provider` |
 | `marketing_agency` | `/marketing` |
+| `staff` | `/staff` |
 | `admin` | `/admin` |
 | `superadmin` | `/admin` |
 
@@ -741,6 +939,7 @@ Routes created as placeholders:
 - `/negotiator` (Negotiator)
 - `/service-provider` (Service Provider)
 - `/marketing` (Marketing Agency)
+- `/staff` (EOM Staff — shows only the tools matching their assigned capabilities)
 - `/profile` (shared — all roles, built out in Phase 4: Business Profiles)
 
 ### 5.5 Shared Components
@@ -783,6 +982,7 @@ app/
 ├── server/
 │   └── fns/
 │       ├── admin.ts
+│       ├── capabilities.ts
 │       ├── logs.ts
 │       ├── navigation.ts
 │       └── permissions.ts
@@ -809,9 +1009,12 @@ app/
 │   │   ├── route.tsx          (admin layout with sidebar)
 │   │   ├── index.tsx          (dashboard)
 │   │   ├── users.tsx
+│   │   ├── users.$userId.caps.tsx
 │   │   ├── logs.tsx
 │   │   ├── navigation.tsx
-│   │   └── permissions.tsx
+│   │   ├── permissions.tsx
+│   │   └── capabilities.tsx
+│   ├── staff.tsx              (Staff dashboard — capability-driven)
 │   └── api/
 │       └── auth.$.ts          (existing)
 ├── router.tsx                 (existing)
@@ -836,16 +1039,17 @@ Dockerfile
 
 1. **Infrastructure** — Docker Compose, remove SQLite, add postgres.js, update drizzle config, create `.env.example`
 2. **Schema** — Write `app/lib/schema.ts` with all Phase 1 tables, generate Drizzle migration
-3. **Auth** — Configure Better Auth with 9 roles + `isActive`, `email.ts` helper (nodemailer/SMTP), `auth-client.ts` with `useRole()`, auth routes (login, register, forgot-password, reset-password, verify-email)
+3. **Auth** — Configure Better Auth with 10 roles + `isActive`, `email.ts` helper (nodemailer/SMTP), `auth-client.ts` with `useRole()`, auth routes (login, register, forgot-password, reset-password, verify-email)
 4. **Scripts** — `migrate.ts`, `seed-superadmin.ts`, `seed-navigation.ts`
 5. **Permissions helper** — `app/lib/permissions.ts` with role checking functions
 6. **Shared components** — Header, Footer, AdminSidebar, DataTable, RoleBadge, UserDropdown
 7. **Layouts** — Public layout (dynamic nav), admin layout (sidebar + top bar)
-8. **Admin server functions** — `admin.ts`, `logs.ts`, `navigation.ts`, `permissions.ts`
-9. **Admin pages** — Dashboard, Users, Logs, Navigation, Permissions
-10. **Placeholder dashboards** — All role-specific placeholder pages
-11. **Update existing pages** — Landing page and events pages use dynamic Header/Footer
-12. **Dockerfile** — Multi-stage build
+8. **Admin server functions** — `admin.ts`, `capabilities.ts`, `logs.ts`, `navigation.ts`, `permissions.ts`
+9. **Admin pages** — Dashboard, Users (with suspend toggle), Logs, Navigation, Permissions, Capabilities, Per-user capability management
+10. **Staff dashboard** — `/staff` route showing tools based on assigned capabilities
+11. **Placeholder dashboards** — All role-specific placeholder pages (including Staff)
+12. **Update existing pages** — Landing page and events pages use dynamic Header/Footer
+13. **Dockerfile** — Multi-stage build
 
 ---
 
