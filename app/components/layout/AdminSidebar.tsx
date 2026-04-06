@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { useSession, signOut } from '~/lib/auth-client'
+import { ThemeToggle } from '~/components/ui/ThemeToggle'
 
 interface SidebarItem {
   label: string
@@ -69,6 +70,10 @@ export function AdminSidebar({
         })}
       </nav>
       <div className="mt-auto border-t p-4 dark:border-gray-700">
+        <div className="mb-2 flex items-center gap-2">
+          <ThemeToggle />
+          <span className="text-xs text-gray-500 dark:text-gray-400">Theme</span>
+        </div>
         <button
           onClick={async () => {
             await signOut()

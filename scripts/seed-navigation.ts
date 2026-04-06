@@ -38,14 +38,6 @@ const CORE_LINKS = [
     isPublishable: false,
   },
   {
-    label: 'Login',
-    url: '/login',
-    position: 'header',
-    sortOrder: 5,
-    isDeletable: false,
-    isPublishable: false,
-  },
-  {
     label: 'Contact',
     url: '/contact',
     position: 'footer',
