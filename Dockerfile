@@ -9,6 +9,8 @@ FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
+# Run migrations at build time (DB must be reachable)
+# For Railway, we'll run migrations separately
 
 FROM base AS runner
 COPY --from=build /app/.output ./.output
@@ -20,7 +22,8 @@ COPY --from=build /app/package.json ./
 COPY --from=build /app/package-lock.json ./
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/app/lib ./app/lib
-EXPOSE 3000
 ENV PORT=3000
+ENV HOST=0.0.0.0
 ENV NODE_ENV=production
-CMD ["sh", "-c", "npx drizzle-kit migrate && node .output/server/index.mjs"]
+EXPOSE 3000
+CMD ["node", ".output/server/index.mjs"]
