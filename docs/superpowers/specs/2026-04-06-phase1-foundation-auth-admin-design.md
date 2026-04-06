@@ -241,6 +241,9 @@ export const auth = betterAuth({
     },
   },
   plugins: [admin()],
+  // Requires: import { eq } from 'drizzle-orm'
+  // Requires: import { APIError } from 'better-auth/api'
+  // Requires: import { users } from './schema'
   databaseHooks: {
     session: {
       create: {
@@ -423,7 +426,7 @@ refreshToken            text        nullable
 accessTokenExpiresAt    timestamp   nullable
 refreshTokenExpiresAt   timestamp   nullable
 scope                   text        nullable
-password                text        nullable
+password                text        nullable (password hash stored here by Better Auth, not on users table)
 createdAt               timestamp   not null, defaultNow()
 updatedAt               timestamp   not null, defaultNow()
 ```
@@ -575,6 +578,12 @@ export async function requireCapability(session: Session, capability: string) {
 
 **Not applicable to:** `user`, `staff`, `admin`, `superadmin` (these roles use `isActive` toggle instead)
 
+**Interaction with `isActive`:** These are independent states. `isActive = false` (deactivated) takes precedence — a deactivated user cannot log in regardless of suspension status. Suspension only matters when `isActive = true`. The UI shows the dominant state:
+- `isActive = false` → Red "Inactive" badge (suspension toggle hidden)
+- `isActive = true, isSuspended = true` → Amber "Suspended" badge
+- `isActive = true, isSuspended = false` → Green "Active" badge
+When an admin deactivates a suspended user, `isSuspended` is preserved (not reset). When reactivated, the user returns to their previous suspended/active state.
+
 **How it works:**
 - `users.isSuspended` boolean field (default `false`)
 - Admin (with `admin:suspend:manage` capability) or Superadmin can toggle suspension
@@ -645,11 +654,12 @@ Every server function described as "Admin+ only" MUST call `requireCapability(se
 
 ### 4.2 Dashboard (`/admin`)
 
-Overview cards showing:
-- Total users count
-- Users by role (breakdown)
-- Recently created accounts (last 7 days)
-- Recent activity log entries (last 10)
+Overview cards — each card is only visible if the admin has the corresponding capability:
+- Total users count + Users by role breakdown (requires `admin:users:manage`)
+- Recently created accounts, last 7 days (requires `admin:users:manage`)
+- Recent activity log entries, last 10 (requires `admin:logs:view`)
+- An Admin with no capabilities sees only a welcome message and "Contact your Superadmin to get access"
+- Superadmin sees all cards
 
 ### 4.3 User Management (`/admin/users`)
 
@@ -691,43 +701,44 @@ Overview cards showing:
 **Server functions (`app/server/fns/admin.ts`):**
 
 `listUsers({ page, perPage, search, roleFilter, statusFilter })`
-- Admin+ only
+- Requires `admin:users:manage` capability
 - Returns paginated user list with total count
 - Joins `user_profiles` for extended data
 
 `createUser({ name, email, password, role })`
-- Admin+ only
-- Validates role assignment permissions (admin cannot create superadmin)
+- Requires `admin:users:manage` capability
+- Validates role assignment permissions (admin cannot create superadmin; bulk role change to `admin` requires Superadmin)
 - Creates user via Better Auth's admin API
 - Creates empty `user_profiles` row
 - Logs `user_created` to `user_logs`
 
 `updateUser({ id, name, email, role })`
-- Admin+ only
-- Validates role assignment permissions
+- Requires `admin:users:manage` capability
+- Validates role assignment permissions (changing role to `admin` requires Superadmin)
 - Logs `user_updated` and/or `role_changed` to `user_logs`
 
 `toggleUserStatus({ id, active })`
-- Admin+ only
+- Requires `admin:users:manage` capability
 - Sets `isActive` on user
 - Logs `user_activated` or `user_deactivated`
 
 `deleteUser({ id })`
-- Superadmin only
+- Requires `admin:users:delete` capability (Superadmin bypasses)
 - Permanently removes user
 - Logs `user_deleted` (userId set to null since user is gone, details contain deleted user info)
 
 `bulkUpdateRole({ userIds, role })`
-- Admin+ only
+- Requires `admin:users:manage` capability
+- If target role is `admin`, requires Superadmin (prevents privilege escalation)
 - Validates permissions for each user
 - Logs `role_changed` for each
 
 `bulkToggleStatus({ userIds, active })`
-- Admin+ only
+- Requires `admin:users:manage` capability
 - Logs per user
 
 `bulkDeleteUsers({ userIds })`
-- Superadmin only
+- Requires `admin:users:delete` capability (Superadmin bypasses)
 - For each user: logs `user_deleted` with `userId: null` and deleted user info in `details` (same pattern as single `deleteUser`)
 
 ### 4.4 Activity Logs (`/admin/logs`)
@@ -741,7 +752,7 @@ Overview cards showing:
 **Server functions (`app/server/fns/logs.ts`):**
 
 `listLogs({ page, perPage, userId, action, dateFrom, dateTo })`
-- Admin+ only
+- Requires `admin:logs:view` capability
 - Returns paginated log entries with user join
 - Date range filter uses `>=` and `<=` on `createdAt`
 
@@ -756,8 +767,6 @@ Overview cards showing:
 - Reorder via sort order number field
 
 **Core links seeded by `scripts/seed-navigation.ts`:**
-| Label | URL | Position | isDeletable |
-|---|---|---|---|
 | Label | URL | Position | isDeletable | isPublishable |
 |---|---|---|---|---|
 | Home | `/` | both | false | false |
@@ -776,19 +785,19 @@ Core links can be hidden (`isVisible = false`) but not deleted.
 - Returns visible links for position, sorted by `sortOrder`
 
 `listAllNavLinks()`
-- Admin+ only
+- Requires `admin:navigation:manage` capability
 - Returns all links including hidden ones
 
 `createNavLink({ label, url, position, sortOrder, isExternal, isPublishable })`
-- Admin+ only
+- Requires `admin:navigation:manage` capability
 - Logs `nav_link_created`
 
 `updateNavLink({ id, label, url, position, sortOrder, isVisible, isExternal, isPublishable })`
-- Admin+ only
+- Requires `admin:navigation:manage` capability
 - Logs `nav_link_updated`
 
 `deleteNavLink({ id })`
-- Admin+ only
+- Requires `admin:navigation:manage` capability
 - Rejects if `isDeletable === false`
 - Logs `nav_link_deleted`
 
@@ -801,16 +810,17 @@ Core links can be hidden (`isVisible = false`) but not deleted.
 - Each cell is a checkbox toggle
 - Changes save immediately (optimistic UI)
 - Admin/Superadmin row shows all checked and disabled (always have access)
+- Staff row: Staff do not publish content — they edit existing pages via `pages:edit:<slug>` capabilities. Staff row is hidden from the publishing permissions matrix.
 
 **Server functions (`app/server/fns/permissions.ts`):**
 
 `getPublishingPermissions()`
-- Admin+ only
+- Requires `admin:permissions:manage` capability
 - Returns all `publishing_permissions` rows
 - Joined with `navigation_links` for page labels
 
 `updatePublishingPermission({ role, targetPage, canPublish })`
-- Admin+ only
+- Requires `admin:permissions:manage` capability
 - Upserts: insert on conflict update `canPublish`
 - Logs `permission_changed` with `{ role, targetPage, canPublish }` in details
 
