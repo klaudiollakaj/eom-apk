@@ -1,13 +1,10 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { eq, and } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { userCapabilities, userLogs, users } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
-import {
-  requireCapability,
-  isSuperadmin,
-  type Role,
-} from '~/lib/permissions'
+import { requireCapability } from '~/lib/permissions.server'
+import { isSuperadmin, type Role } from '~/lib/permissions'
 
 export const getUserCapabilities = createServerFn({ method: 'GET' })
   .validator((input: { userId: string }) => input)

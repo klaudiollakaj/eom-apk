@@ -1,4 +1,4 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { getHeaders } from '@tanstack/react-start/server'
 import { auth } from '~/lib/auth'
 import { isAdmin } from '~/lib/permissions'

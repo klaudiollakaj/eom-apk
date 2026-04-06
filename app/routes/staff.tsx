@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSession, signOut } from '~/lib/auth-client'
 import { useState, useEffect } from 'react'
 import { getMyCapabilities } from '~/server/fns/capabilities'
@@ -10,6 +10,7 @@ export const Route = createFileRoute('/staff')({
 })
 
 function StaffPage() {
+  const navigate = useNavigate()
   const session = useSession()
   const user = session.data?.user
   const [capabilities, setCapabilities] = useState<string[]>([])
@@ -37,7 +38,7 @@ function StaffPage() {
           </div>
         </div>
         <button
-          onClick={() => signOut()}
+          onClick={async () => { await signOut(); navigate({ to: '/login' }) }}
           className="rounded-md bg-red-600 px-4 py-2 text-sm text-white"
         >
           Logout

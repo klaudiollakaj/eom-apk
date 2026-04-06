@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSession, signOut } from '~/lib/auth-client'
 import { RoleBadge } from '~/components/ui/RoleBadge'
 import type { Role } from '~/lib/permissions'
@@ -8,6 +8,7 @@ export const Route = createFileRoute('/marketing')({
 })
 
 function Page() {
+  const navigate = useNavigate()
   const session = useSession()
   const user = session.data?.user
 
@@ -24,7 +25,7 @@ function Page() {
           Your dashboard is coming soon.
         </p>
         <button
-          onClick={() => signOut()}
+          onClick={async () => { await signOut(); navigate({ to: '/login' }) }}
           className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm text-white"
         >
           Logout

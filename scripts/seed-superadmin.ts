@@ -45,7 +45,7 @@ async function main() {
   const { admin } = await import('better-auth/plugins')
 
   const authInstance = betterAuth({
-    database: drizzleAdapter(db, { provider: 'pg' }),
+    database: drizzleAdapter(db, { provider: 'pg', schema }),
     emailAndPassword: { enabled: true },
     user: {
       additionalFields: {

@@ -1,9 +1,9 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { eq, and, gte, lte, desc, count } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { userLogs } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
-import { requireCapability } from '~/lib/permissions'
+import { requireCapability } from '~/lib/permissions.server'
 
 export const listLogs = createServerFn({ method: 'GET' })
   .validator(

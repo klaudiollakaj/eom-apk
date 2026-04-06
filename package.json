@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vinxi dev",
-    "build": "vinxi build",
-    "start": "vinxi start",
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "node .output/server/index.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -18,7 +18,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@tanstack/react-router": "^1.168.2",
+    "@tanstack/react-router": "^1.131.50",
     "@tanstack/react-start": "^1.131.50",
     "better-auth": "^1.5.6",
     "drizzle-orm": "^0.45.1",
@@ -33,15 +33,17 @@
   "devDependencies": {
     "@inquirer/prompts": "^8.3.2",
     "@tailwindcss/vite": "^4.2.2",
-    "@tanstack/router-plugin": "^1.167.3",
+    "@tanstack/router-plugin": "^1.131.50",
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
     "dotenv": "^17.4.1",
     "drizzle-kit": "^0.31.10",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "vite": "^8.0.1",
     "vite-tsconfig-paths": "^6.1.1"
   }
 }

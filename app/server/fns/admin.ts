@@ -1,10 +1,10 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { eq, and, or, like, count, desc } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { users, userLogs, sessions } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
+import { requireCapability } from '~/lib/permissions.server'
 import {
-  requireCapability,
   isSuperadmin,
   isBusinessRole,
   creatableRoles,

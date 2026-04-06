@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { signOut, useSession } from '~/lib/auth-client'
 import { RoleBadge } from '~/components/ui/RoleBadge'
 import type { Role } from '~/lib/permissions'
@@ -19,6 +19,7 @@ const DASHBOARD_ROUTES: Record<string, string> = {
 
 export function UserDropdown() {
   const session = useSession()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
   if (!session.data?.user) return null
@@ -53,9 +54,10 @@ export function UserDropdown() {
             Profile
           </Link>
           <button
-            onClick={() => {
-              signOut()
+            onClick={async () => {
+              await signOut()
               setOpen(false)
+              navigate({ to: '/login' })
             }}
             className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
           >

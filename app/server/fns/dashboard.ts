@@ -1,9 +1,10 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { gte, count, desc } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { users, userLogs } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
-import { hasCapability, type Role } from '~/lib/permissions'
+import { hasCapability } from '~/lib/permissions.server'
+import type { Role } from '~/lib/permissions'
 
 export const getDashboardStats = createServerFn({ method: 'GET' }).handler(
   async () => {

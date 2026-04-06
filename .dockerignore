@@ -1,0 +1,9 @@
+node_modules
+.git
+.output
+.vinxi
+dist
+*.env
+*.env.local
+.superpowers
+docs

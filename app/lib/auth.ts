@@ -4,11 +4,12 @@ import { admin } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 import { APIError } from 'better-auth/api'
 import { db } from './db'
+import * as schema from './schema'
 import { users } from './schema'
 import { sendEmail } from './email'
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: 'pg' }),
+  database: drizzleAdapter(db, { provider: 'pg', schema }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

@@ -1,5 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useSession } from '~/lib/auth-client'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useSession, signOut } from '~/lib/auth-client'
 import { RoleBadge } from '~/components/ui/RoleBadge'
 import type { Role } from '~/lib/permissions'
 
@@ -9,6 +9,7 @@ export const Route = createFileRoute('/profile')({
 
 function ProfilePage() {
   const session = useSession()
+  const navigate = useNavigate()
   const user = session.data?.user
 
   if (!user) return null
@@ -34,6 +35,15 @@ function ProfilePage() {
         <p className="text-sm text-gray-400">
           Profile editing coming in a future update.
         </p>
+        <button
+          onClick={async () => {
+            await signOut()
+            navigate({ to: '/login' })
+          }}
+          className="mt-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-600 hover:bg-red-100"
+        >
+          Logout
+        </button>
       </div>
     </div>
   )

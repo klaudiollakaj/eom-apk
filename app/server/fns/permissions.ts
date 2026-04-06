@@ -1,4 +1,4 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { eq, and } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import {
@@ -7,11 +7,8 @@ import {
   userLogs,
 } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
-import {
-  requireCapability,
-  isAdmin,
-  type Role,
-} from '~/lib/permissions'
+import { requireCapability } from '~/lib/permissions.server'
+import { isAdmin, type Role } from '~/lib/permissions'
 
 export const getPublishingPermissions = createServerFn({
   method: 'GET',

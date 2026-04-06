@@ -23,6 +23,9 @@ export const users = pgTable('users', {
   role: text('role').notNull().default('user'),
   isActive: boolean('is_active').notNull().default(true),
   isSuspended: boolean('is_suspended').notNull().default(false),
+  banned: boolean('banned').default(false),
+  banReason: text('ban_reason'),
+  banExpires: timestamp('ban_expires'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
@@ -204,3 +207,14 @@ export const userCapabilitiesRelations = relations(
     }),
   }),
 )
+
+// ============================================================
+// Singular aliases for Better Auth's Drizzle adapter
+// (it looks up schema[modelName] using singular names)
+// ============================================================
+export {
+  users as user,
+  sessions as session,
+  accounts as account,
+  verifications as verification,
+}

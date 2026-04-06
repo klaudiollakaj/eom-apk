@@ -1,9 +1,9 @@
-import { createServerFn } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
 import { eq, and, asc } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { navigationLinks, userLogs } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
-import { requireCapability } from '~/lib/permissions'
+import { requireCapability } from '~/lib/permissions.server'
 
 export const getNavLinks = createServerFn({ method: 'GET' })
   .validator((input: { position: 'header' | 'footer' }) => input)
