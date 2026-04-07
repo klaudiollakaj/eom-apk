@@ -11,7 +11,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed:superadmin": "npx tsx scripts/seed-superadmin.ts",
     "db:seed:navigation": "npx tsx scripts/seed-navigation.ts",
-    "db:seed": "npm run db:seed:superadmin && npm run db:seed:navigation"
+    "db:seed:categories": "npx tsx scripts/seed-categories.ts",
+    "db:seed": "npm run db:seed:superadmin && npm run db:seed:navigation && npm run db:seed:categories"
   },
   "keywords": [],
   "author": "",
