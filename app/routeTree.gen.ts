@@ -18,15 +18,16 @@ import { Route as ServiceProviderRouteImport } from './routes/service-provider'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as OrganizerRouteImport } from './routes/organizer'
 import { Route as NegotiatorRouteImport } from './routes/negotiator'
 import { Route as MarketingRouteImport } from './routes/marketing'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DistributorRouteImport } from './routes/distributor'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as OrganizerRouteRouteImport } from './routes/organizer/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrganizerIndexRouteImport } from './routes/organizer/index'
 import { Route as EventsIndexRouteImport } from './routes/events/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as EventsEventIdRouteImport } from './routes/events/$eventId'
@@ -34,7 +35,11 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminPermissionsRouteImport } from './routes/admin/permissions'
 import { Route as AdminNavigationRouteImport } from './routes/admin/navigation'
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
+import { Route as AdminEventsRouteImport } from './routes/admin/events'
+import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
 import { Route as AdminCapabilitiesRouteImport } from './routes/admin/capabilities'
+import { Route as OrganizerEventsNewRouteImport } from './routes/organizer/events/new'
+import { Route as OrganizerEventsEventIdEditRouteImport } from './routes/organizer/events/$eventId.edit'
 import { Route as AdminUsersUserIdCapsRouteImport } from './routes/admin/users.$userId.caps'
 import { ServerRoute as ApiAuthSplatServerRouteImport } from './routes/api/auth.$'
 
@@ -75,11 +80,6 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrganizerRoute = OrganizerRouteImport.update({
-  id: '/organizer',
-  path: '/organizer',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const NegotiatorRoute = NegotiatorRouteImport.update({
   id: '/negotiator',
   path: '/negotiator',
@@ -110,6 +110,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrganizerRouteRoute = OrganizerRouteRouteImport.update({
+  id: '/organizer',
+  path: '/organizer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -119,6 +124,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizerIndexRoute = OrganizerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrganizerRouteRoute,
 } as any)
 const EventsIndexRoute = EventsIndexRouteImport.update({
   id: '/events/',
@@ -155,11 +165,32 @@ const AdminLogsRoute = AdminLogsRouteImport.update({
   path: '/logs',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminEventsRoute = AdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminCapabilitiesRoute = AdminCapabilitiesRouteImport.update({
   id: '/capabilities',
   path: '/capabilities',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const OrganizerEventsNewRoute = OrganizerEventsNewRouteImport.update({
+  id: '/events/new',
+  path: '/events/new',
+  getParentRoute: () => OrganizerRouteRoute,
+} as any)
+const OrganizerEventsEventIdEditRoute =
+  OrganizerEventsEventIdEditRouteImport.update({
+    id: '/events/$eventId/edit',
+    path: '/events/$eventId/edit',
+    getParentRoute: () => OrganizerRouteRoute,
+  } as any)
 const AdminUsersUserIdCapsRoute = AdminUsersUserIdCapsRouteImport.update({
   id: '/$userId/caps',
   path: '/$userId/caps',
@@ -174,13 +205,13 @@ const ApiAuthSplatServerRoute = ApiAuthSplatServerRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/organizer': typeof OrganizerRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/distributor': typeof DistributorRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/marketing': typeof MarketingRoute
   '/negotiator': typeof NegotiatorRoute
-  '/organizer': typeof OrganizerRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -189,6 +220,8 @@ export interface FileRoutesByFullPath {
   '/staff': typeof StaffRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/capabilities': typeof AdminCapabilitiesRoute
+  '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/navigation': typeof AdminNavigationRoute
   '/admin/permissions': typeof AdminPermissionsRoute
@@ -196,7 +229,10 @@ export interface FileRoutesByFullPath {
   '/events/$eventId': typeof EventsEventIdRoute
   '/admin/': typeof AdminIndexRoute
   '/events': typeof EventsIndexRoute
+  '/organizer/': typeof OrganizerIndexRoute
+  '/organizer/events/new': typeof OrganizerEventsNewRoute
   '/admin/users/$userId/caps': typeof AdminUsersUserIdCapsRoute
+  '/organizer/events/$eventId/edit': typeof OrganizerEventsEventIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -206,7 +242,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/marketing': typeof MarketingRoute
   '/negotiator': typeof NegotiatorRoute
-  '/organizer': typeof OrganizerRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -215,6 +250,8 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/capabilities': typeof AdminCapabilitiesRoute
+  '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/navigation': typeof AdminNavigationRoute
   '/admin/permissions': typeof AdminPermissionsRoute
@@ -222,19 +259,22 @@ export interface FileRoutesByTo {
   '/events/$eventId': typeof EventsEventIdRoute
   '/admin': typeof AdminIndexRoute
   '/events': typeof EventsIndexRoute
+  '/organizer': typeof OrganizerIndexRoute
+  '/organizer/events/new': typeof OrganizerEventsNewRoute
   '/admin/users/$userId/caps': typeof AdminUsersUserIdCapsRoute
+  '/organizer/events/$eventId/edit': typeof OrganizerEventsEventIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/organizer': typeof OrganizerRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/distributor': typeof DistributorRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/marketing': typeof MarketingRoute
   '/negotiator': typeof NegotiatorRoute
-  '/organizer': typeof OrganizerRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -243,6 +283,8 @@ export interface FileRoutesById {
   '/staff': typeof StaffRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/capabilities': typeof AdminCapabilitiesRoute
+  '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/navigation': typeof AdminNavigationRoute
   '/admin/permissions': typeof AdminPermissionsRoute
@@ -250,20 +292,23 @@ export interface FileRoutesById {
   '/events/$eventId': typeof EventsEventIdRoute
   '/admin/': typeof AdminIndexRoute
   '/events/': typeof EventsIndexRoute
+  '/organizer/': typeof OrganizerIndexRoute
+  '/organizer/events/new': typeof OrganizerEventsNewRoute
   '/admin/users/$userId/caps': typeof AdminUsersUserIdCapsRoute
+  '/organizer/events/$eventId/edit': typeof OrganizerEventsEventIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/organizer'
     | '/dashboard'
     | '/distributor'
     | '/forgot-password'
     | '/login'
     | '/marketing'
     | '/negotiator'
-    | '/organizer'
     | '/profile'
     | '/register'
     | '/reset-password'
@@ -272,6 +317,8 @@ export interface FileRouteTypes {
     | '/staff'
     | '/verify-email'
     | '/admin/capabilities'
+    | '/admin/categories'
+    | '/admin/events'
     | '/admin/logs'
     | '/admin/navigation'
     | '/admin/permissions'
@@ -279,7 +326,10 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/admin/'
     | '/events'
+    | '/organizer/'
+    | '/organizer/events/new'
     | '/admin/users/$userId/caps'
+    | '/organizer/events/$eventId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -289,7 +339,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketing'
     | '/negotiator'
-    | '/organizer'
     | '/profile'
     | '/register'
     | '/reset-password'
@@ -298,6 +347,8 @@ export interface FileRouteTypes {
     | '/staff'
     | '/verify-email'
     | '/admin/capabilities'
+    | '/admin/categories'
+    | '/admin/events'
     | '/admin/logs'
     | '/admin/navigation'
     | '/admin/permissions'
@@ -305,18 +356,21 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/admin'
     | '/events'
+    | '/organizer'
+    | '/organizer/events/new'
     | '/admin/users/$userId/caps'
+    | '/organizer/events/$eventId/edit'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/organizer'
     | '/dashboard'
     | '/distributor'
     | '/forgot-password'
     | '/login'
     | '/marketing'
     | '/negotiator'
-    | '/organizer'
     | '/profile'
     | '/register'
     | '/reset-password'
@@ -325,6 +379,8 @@ export interface FileRouteTypes {
     | '/staff'
     | '/verify-email'
     | '/admin/capabilities'
+    | '/admin/categories'
+    | '/admin/events'
     | '/admin/logs'
     | '/admin/navigation'
     | '/admin/permissions'
@@ -332,19 +388,22 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/admin/'
     | '/events/'
+    | '/organizer/'
+    | '/organizer/events/new'
     | '/admin/users/$userId/caps'
+    | '/organizer/events/$eventId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  OrganizerRouteRoute: typeof OrganizerRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   DistributorRoute: typeof DistributorRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MarketingRoute: typeof MarketingRoute
   NegotiatorRoute: typeof NegotiatorRoute
-  OrganizerRoute: typeof OrganizerRoute
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -428,13 +487,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/organizer': {
-      id: '/organizer'
-      path: '/organizer'
-      fullPath: '/organizer'
-      preLoaderRoute: typeof OrganizerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/negotiator': {
       id: '/negotiator'
       path: '/negotiator'
@@ -477,6 +529,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/organizer': {
+      id: '/organizer'
+      path: '/organizer'
+      fullPath: '/organizer'
+      preLoaderRoute: typeof OrganizerRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -490,6 +549,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/organizer/': {
+      id: '/organizer/'
+      path: '/'
+      fullPath: '/organizer/'
+      preLoaderRoute: typeof OrganizerIndexRouteImport
+      parentRoute: typeof OrganizerRouteRoute
     }
     '/events/': {
       id: '/events/'
@@ -540,12 +606,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLogsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/events': {
+      id: '/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminEventsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/capabilities': {
       id: '/admin/capabilities'
       path: '/capabilities'
       fullPath: '/admin/capabilities'
       preLoaderRoute: typeof AdminCapabilitiesRouteImport
       parentRoute: typeof AdminRouteRoute
+    }
+    '/organizer/events/new': {
+      id: '/organizer/events/new'
+      path: '/events/new'
+      fullPath: '/organizer/events/new'
+      preLoaderRoute: typeof OrganizerEventsNewRouteImport
+      parentRoute: typeof OrganizerRouteRoute
+    }
+    '/organizer/events/$eventId/edit': {
+      id: '/organizer/events/$eventId/edit'
+      path: '/events/$eventId/edit'
+      fullPath: '/organizer/events/$eventId/edit'
+      preLoaderRoute: typeof OrganizerEventsEventIdEditRouteImport
+      parentRoute: typeof OrganizerRouteRoute
     }
     '/admin/users/$userId/caps': {
       id: '/admin/users/$userId/caps'
@@ -582,6 +676,8 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 
 interface AdminRouteRouteChildren {
   AdminCapabilitiesRoute: typeof AdminCapabilitiesRoute
+  AdminCategoriesRoute: typeof AdminCategoriesRoute
+  AdminEventsRoute: typeof AdminEventsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminNavigationRoute: typeof AdminNavigationRoute
   AdminPermissionsRoute: typeof AdminPermissionsRoute
@@ -591,6 +687,8 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminCapabilitiesRoute: AdminCapabilitiesRoute,
+  AdminCategoriesRoute: AdminCategoriesRoute,
+  AdminEventsRoute: AdminEventsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminNavigationRoute: AdminNavigationRoute,
   AdminPermissionsRoute: AdminPermissionsRoute,
@@ -602,16 +700,32 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
+interface OrganizerRouteRouteChildren {
+  OrganizerIndexRoute: typeof OrganizerIndexRoute
+  OrganizerEventsNewRoute: typeof OrganizerEventsNewRoute
+  OrganizerEventsEventIdEditRoute: typeof OrganizerEventsEventIdEditRoute
+}
+
+const OrganizerRouteRouteChildren: OrganizerRouteRouteChildren = {
+  OrganizerIndexRoute: OrganizerIndexRoute,
+  OrganizerEventsNewRoute: OrganizerEventsNewRoute,
+  OrganizerEventsEventIdEditRoute: OrganizerEventsEventIdEditRoute,
+}
+
+const OrganizerRouteRouteWithChildren = OrganizerRouteRoute._addFileChildren(
+  OrganizerRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  OrganizerRouteRoute: OrganizerRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   DistributorRoute: DistributorRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MarketingRoute: MarketingRoute,
   NegotiatorRoute: NegotiatorRoute,
-  OrganizerRoute: OrganizerRoute,
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
