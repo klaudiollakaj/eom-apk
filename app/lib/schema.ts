@@ -7,6 +7,8 @@ import {
   jsonb,
   date,
   unique,
+  numeric,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
@@ -156,6 +158,71 @@ export const userCapabilities = pgTable(
 )
 
 // ============================================================
+// Phase 2: Event Tables
+// ============================================================
+
+export const categories = pgTable('categories', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull().unique(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const events = pgTable('events', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organizerId: text('organizer_id').notNull().references(() => users.id),
+  categoryId: text('category_id').references(() => categories.id),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  type: text('type').notNull().default('single_day'),
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date'),
+  startTime: text('start_time'),
+  endTime: text('end_time'),
+  venueName: text('venue_name'),
+  address: text('address'),
+  city: text('city'),
+  country: text('country'),
+  onlineUrl: text('online_url'),
+  bannerImage: text('banner_image'),
+  price: numeric('price', { precision: 10, scale: 2 }),
+  capacity: integer('capacity'),
+  status: text('status').notNull().default('draft'),
+  visibility: text('visibility').notNull().default('public'),
+  isFeatured: boolean('is_featured').notNull().default(false),
+  ageRestriction: text('age_restriction'),
+  contactEmail: text('contact_email'),
+  contactPhone: text('contact_phone'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const eventImages = pgTable('event_images', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  imageUrl: text('image_url').notNull(),
+  caption: text('caption'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const tags = pgTable('tags', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull().unique(),
+  slug: text('slug').notNull().unique(),
+})
+
+export const eventTags = pgTable('event_tags', {
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  tagId: text('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+}, (table) => [
+  primaryKey({ columns: [table.eventId, table.tagId] }),
+])
+
+// ============================================================
 // Relations
 // ============================================================
 
@@ -168,6 +235,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   accounts: many(accounts),
   logs: many(userLogs),
   capabilities: many(userCapabilities),
+  events: many(events),
 }))
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -207,6 +275,30 @@ export const userCapabilitiesRelations = relations(
     }),
   }),
 )
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  events: many(events),
+}))
+
+export const eventsRelations = relations(events, ({ one, many }) => ({
+  organizer: one(users, { fields: [events.organizerId], references: [users.id] }),
+  category: one(categories, { fields: [events.categoryId], references: [categories.id] }),
+  images: many(eventImages),
+  tags: many(eventTags),
+}))
+
+export const eventImagesRelations = relations(eventImages, ({ one }) => ({
+  event: one(events, { fields: [eventImages.eventId], references: [events.id] }),
+}))
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  events: many(eventTags),
+}))
+
+export const eventTagsRelations = relations(eventTags, ({ one }) => ({
+  event: one(events, { fields: [eventTags.eventId], references: [events.id] }),
+  tag: one(tags, { fields: [eventTags.tagId], references: [tags.id] }),
+}))
 
 // ============================================================
 // Singular aliases for Better Auth's Drizzle adapter
