@@ -18,7 +18,7 @@ COPY --from=build /app/tsconfig.json ./
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/app/lib ./app/lib
 WORKDIR /app/.output/server
-RUN npm install --omit=dev --ignore-scripts --no-package-lock
+RUN npm install --omit=dev --force --no-package-lock
 WORKDIR /app
 ENV PORT=3000
 ENV HOST=0.0.0.0
