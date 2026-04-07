@@ -15,11 +15,11 @@ COPY --from=build /app/.output ./.output
 COPY --from=build /app/drizzle ./drizzle
 COPY --from=build /app/drizzle.config.ts ./
 COPY --from=build /app/tsconfig.json ./
-COPY --from=build /app/package.json ./
-COPY --from=build /app/package-lock.json ./
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/app/lib ./app/lib
-RUN npm ci --omit=dev
+WORKDIR /app/.output/server
+RUN npm install --omit=dev
+WORKDIR /app
 ENV PORT=3000
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
