@@ -36,6 +36,8 @@ function AdminLayout() {
           'admin:permissions:manage',
           'admin:capabilities:manage',
           'admin:suspend:manage',
+          'admin:categories:manage',
+          'admin:events:manage',
         ]
       : (capabilities as string[])
 
