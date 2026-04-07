@@ -1,7 +1,11 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
+import { useState, useEffect } from 'react'
 import { Header } from '~/components/layout/Header'
 import { Footer } from '~/components/layout/Footer'
+import { EventCard } from '~/components/events/EventCard'
+import { EventFilters, type FilterState } from '~/components/events/EventFilters'
 import { getNavLinks } from '~/server/fns/navigation'
+import { listPublicEvents } from '~/server/fns/events'
 
 export const Route = createFileRoute('/events/')({
   loader: async () => {
@@ -20,6 +24,37 @@ export const Route = createFileRoute('/events/')({
 
 function EventsPage() {
   const { headerLinks, footerLinks } = Route.useLoaderData()
+  const [events, setEvents] = useState<any[]>([])
+  const [total, setTotal] = useState(0)
+  const [offset, setOffset] = useState(0)
+  const limit = 12
+  const [filters, setFilters] = useState<FilterState>({
+    search: '', categoryId: '', startAfter: '', startBefore: '', priceFilter: '', tagIds: [],
+  })
+
+  async function fetchEvents() {
+    const result = await listPublicEvents({
+      data: {
+        categoryId: filters.categoryId || undefined,
+        startAfter: filters.startAfter || undefined,
+        startBefore: filters.startBefore || undefined,
+        priceFilter: (filters.priceFilter as any) || undefined,
+        search: filters.search || undefined,
+        tagIds: filters.tagIds.length > 0 ? filters.tagIds : undefined,
+        offset,
+        limit,
+      },
+    })
+    setEvents(result.events)
+    setTotal(result.total)
+  }
+
+  useEffect(() => { fetchEvents() }, [filters, offset])
+
+  function handleFilterChange(newFilters: FilterState) {
+    setFilters(newFilters)
+    setOffset(0)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -27,46 +62,45 @@ function EventsPage() {
 
       <div className="mx-auto max-w-7xl px-6 py-10">
         <h1 className="text-3xl font-bold">All Events</h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Browse upcoming festivals, concerts, and events
-        </p>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">Browse upcoming festivals, concerts, and events</p>
 
-        {/* Filters */}
-        <div className="mt-6 flex gap-3">
-          <button className="rounded-full bg-indigo-600 px-4 py-1.5 text-sm text-white">
-            All
-          </button>
-          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-            Available
-          </button>
-          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-            Coming Soon
-          </button>
-          <button className="rounded-full bg-white px-4 py-1.5 text-sm text-gray-700 border hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-            Sold Out
-          </button>
-        </div>
+        <div className="mt-8 flex gap-8">
+          <EventFilters filters={filters} onChange={handleFilterChange} />
 
-        {/* Events Grid */}
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border bg-white shadow-sm overflow-hidden dark:border-gray-700 dark:bg-gray-800">
-            <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
-              <span className="absolute left-3 top-3 rounded-full bg-green-500 px-3 py-1 text-xs font-medium text-white">
-                Available
-              </span>
-            </div>
-            <div className="p-5">
-              <h3 className="text-lg font-semibold">Sample Event</h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Events will be listed here once published by organizers.
-              </p>
-              <Link
-                to="/login"
-                className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
-              >
-                Buy Tickets
-              </Link>
-            </div>
+          <div className="flex-1">
+            {events.length > 0 ? (
+              <>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {events.map((event: any) => (
+                    <EventCard
+                      key={event.id}
+                      id={event.id}
+                      title={event.title}
+                      bannerImage={event.bannerImage}
+                      startDate={event.startDate}
+                      city={event.city}
+                      country={event.country}
+                      price={event.price}
+                      category={event.category}
+                    />
+                  ))}
+                </div>
+                {total > offset + limit && (
+                  <div className="mt-8 text-center">
+                    <button
+                      onClick={() => setOffset(offset + limit)}
+                      className="rounded-lg bg-indigo-600 px-6 py-2 text-sm text-white hover:bg-indigo-700"
+                    >
+                      Load More
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-16">
+                <p className="text-gray-500 dark:text-gray-400">No events found matching your filters.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
