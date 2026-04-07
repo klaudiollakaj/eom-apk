@@ -1,4 +1,4 @@
-FROM node:20-slim AS base
+FROM node:20-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
@@ -18,7 +18,7 @@ COPY --from=build /app/tsconfig.json ./
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/app/lib ./app/lib
 WORKDIR /app/.output/server
-RUN npm install --omit=dev
+RUN npm install --omit=dev --force
 WORKDIR /app
 ENV PORT=3000
 ENV HOST=0.0.0.0
