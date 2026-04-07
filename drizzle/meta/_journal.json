@@ -15,6 +15,13 @@
       "when": 1775502852436,
       "tag": "0001_add-admin-plugin-fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775583104613,
+      "tag": "0002_silent_captain_universe",
+      "breakpoints": true
     }
   ]
 }
