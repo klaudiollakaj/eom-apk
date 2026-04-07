@@ -6,6 +6,7 @@ import {
   type ErrorComponentProps,
 } from '@tanstack/react-router'
 import { ThemeProvider } from '~/lib/theme'
+import appCss from '~/styles.css?url'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -15,7 +16,7 @@ export const Route = createRootRoute({
       { title: 'EOM APK' },
     ],
     links: [
-      { rel: 'stylesheet', href: '/app/styles.css' },
+      { rel: 'stylesheet', href: appCss },
     ],
   }),
   component: RootComponent,
