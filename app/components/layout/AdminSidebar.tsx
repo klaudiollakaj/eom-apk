@@ -52,6 +52,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     href: '/admin/negotiations',
     capability: 'admin:negotiations:manage',
   },
+  {
+    label: 'Analytics',
+    href: '/admin/analytics',
+    capability: 'admin:analytics:view',
+  },
 ]
 
 export function AdminSidebar({

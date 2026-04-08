@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { listMyServices } from '~/server/fns/services'
 import { listMyNegotiations } from '~/server/fns/negotiations'
 import { NegotiationStatusBadge } from '~/components/negotiations/NegotiationStatusBadge'
+import { ProviderAnalyticsSection } from '~/components/analytics/ProviderAnalyticsSection'
 
 export const Route = createFileRoute('/service-provider/')({
   component: ProviderDashboard,
@@ -92,6 +93,8 @@ function ProviderDashboard() {
           <NegotiationStatusBadge status={n.status} />
         </Link>
       ))}
+
+      <ProviderAnalyticsSection />
     </div>
   )
 }

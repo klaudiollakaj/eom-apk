@@ -5,6 +5,7 @@ import { listOrganizerEvents } from '~/server/fns/events'
 import { EventStatusBadge } from '~/components/events/EventStatusBadge'
 import type { Role } from '~/lib/permissions'
 import { RoleBadge } from '~/components/ui/RoleBadge'
+import { OrganizerAnalyticsSection } from '~/components/analytics/OrganizerAnalyticsSection'
 
 export const Route = createFileRoute('/organizer/')({
   component: OrganizerDashboard,
@@ -154,6 +155,8 @@ function OrganizerDashboard() {
           </table>
         </div>
       )}
+
+      <OrganizerAnalyticsSection />
     </div>
   )
 }

@@ -77,6 +77,7 @@ export const updateUserCapability = createServerFn({ method: 'POST' })
       'admin:service-categories:manage',
       'admin:services:manage',
       'admin:negotiations:manage',
+      'admin:analytics:view',
     ]
     const isValidKey = VALID_CAPABILITY_PREFIXES.some(
       (prefix) =>
