@@ -17,6 +17,7 @@ COPY --from=build /app/drizzle.config.ts ./
 COPY --from=build /app/tsconfig.json ./
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/app/lib ./app/lib
+RUN npm install -g npm@latest
 WORKDIR /app/.output/server
 RUN npm install --omit=dev --force
 WORKDIR /app
