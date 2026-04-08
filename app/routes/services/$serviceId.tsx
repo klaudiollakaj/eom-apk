@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { getService } from '~/server/fns/services'
 import { requestQuote, sendOffer } from '~/server/fns/negotiations'
+import { listOrganizerEvents } from '~/server/fns/events'
 import { PackageCard } from '~/components/services/PackageCard'
 import { useSession } from '~/lib/auth-client'
 
@@ -26,12 +27,27 @@ function ServiceDetailPage() {
   const [offerPrice, setOfferPrice] = useState('')
   const [offerMessage, setOfferMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [myEvents, setMyEvents] = useState<any[]>([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+
+  async function fetchMyEvents() {
+    setEventsLoading(true)
+    try {
+      const events = await listOrganizerEvents({ data: { status: 'published' } })
+      setMyEvents(events)
+    } catch {
+      setMyEvents([])
+    } finally {
+      setEventsLoading(false)
+    }
+  }
 
   async function handleRequestQuote(packageId: string) {
     if (!isOrganizer) { navigate({ to: '/login' }); return }
     setSelectedPackageId(packageId)
     setOfferPrice('')
     setShowOfferModal(true)
+    fetchMyEvents()
   }
 
   async function handleSendOffer(packageId: string) {
@@ -40,6 +56,7 @@ function ServiceDetailPage() {
     const pkg = service.packages.find((p: any) => p.id === packageId)
     if (pkg?.price) setOfferPrice(pkg.price)
     setShowOfferModal(true)
+    fetchMyEvents()
   }
 
   async function submitOffer() {
@@ -132,9 +149,19 @@ function ServiceDetailPage() {
             <h3 className="mb-4 text-lg font-bold">Send Offer</h3>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium">Event ID *</label>
-                <input type="text" value={eventId} onChange={(e) => setEventId(e.target.value)} placeholder="Paste your event ID" className="w-full rounded-lg border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700" />
-                <p className="mt-1 text-xs text-gray-400">Find this on your event edit page</p>
+                <label className="mb-1 block text-sm font-medium">Select Event *</label>
+                {eventsLoading ? (
+                  <p className="text-sm text-gray-400">Loading your events...</p>
+                ) : myEvents.length === 0 ? (
+                  <p className="text-sm text-amber-600">You have no published events. Publish an event first to send offers.</p>
+                ) : (
+                  <select value={eventId} onChange={(e) => setEventId(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                    <option value="">Choose an event...</option>
+                    {myEvents.map((ev: any) => (
+                      <option key={ev.id} value={ev.id}>{ev.title}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               {offerPrice && (
                 <div>
