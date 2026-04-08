@@ -14,7 +14,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SponsorRouteImport } from './routes/sponsor'
-import { Route as ServiceProviderRouteImport } from './routes/service-provider'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -71,11 +70,6 @@ const StaffRoute = StaffRouteImport.update({
 const SponsorRoute = SponsorRouteImport.update({
   id: '/sponsor',
   path: '/sponsor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ServiceProviderRoute = ServiceProviderRouteImport.update({
-  id: '/service-provider',
-  path: '/service-provider',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -151,7 +145,7 @@ const ServicesIndexRoute = ServicesIndexRouteImport.update({
 const ServiceProviderIndexRoute = ServiceProviderIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => ServiceProviderRoute,
+  getParentRoute: () => ServiceProviderRouteRoute,
 } as any)
 const OrganizerIndexRoute = OrganizerIndexRouteImport.update({
   id: '/',
@@ -232,7 +226,7 @@ const ServiceProviderNegotiationsIndexRoute =
   ServiceProviderNegotiationsIndexRouteImport.update({
     id: '/negotiations/',
     path: '/negotiations/',
-    getParentRoute: () => ServiceProviderRoute,
+    getParentRoute: () => ServiceProviderRouteRoute,
   } as any)
 const OrganizerNegotiationsIndexRoute =
   OrganizerNegotiationsIndexRouteImport.update({
@@ -244,13 +238,13 @@ const ServiceProviderServicesNewRoute =
   ServiceProviderServicesNewRouteImport.update({
     id: '/services/new',
     path: '/services/new',
-    getParentRoute: () => ServiceProviderRoute,
+    getParentRoute: () => ServiceProviderRouteRoute,
   } as any)
 const ServiceProviderNegotiationsNegotiationIdRoute =
   ServiceProviderNegotiationsNegotiationIdRouteImport.update({
     id: '/negotiations/$negotiationId',
     path: '/negotiations/$negotiationId',
-    getParentRoute: () => ServiceProviderRoute,
+    getParentRoute: () => ServiceProviderRouteRoute,
   } as any)
 const OrganizerNegotiationsNegotiationIdRoute =
   OrganizerNegotiationsNegotiationIdRouteImport.update({
@@ -267,7 +261,7 @@ const ServiceProviderServicesServiceIdEditRoute =
   ServiceProviderServicesServiceIdEditRouteImport.update({
     id: '/services/$serviceId/edit',
     path: '/services/$serviceId/edit',
-    getParentRoute: () => ServiceProviderRoute,
+    getParentRoute: () => ServiceProviderRouteRoute,
   } as any)
 const OrganizerEventsEventIdEditRoute =
   OrganizerEventsEventIdEditRouteImport.update({
@@ -290,7 +284,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/organizer': typeof OrganizerRouteRouteWithChildren
-  '/service-provider': typeof ServiceProviderRouteWithChildren
+  '/service-provider': typeof ServiceProviderRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/distributor': typeof DistributorRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -332,7 +326,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/service-provider': typeof ServiceProviderIndexRoute
   '/dashboard': typeof DashboardRoute
   '/distributor': typeof DistributorRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -360,6 +353,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/events': typeof EventsIndexRoute
   '/organizer': typeof OrganizerIndexRoute
+  '/service-provider': typeof ServiceProviderIndexRoute
   '/services': typeof ServicesIndexRoute
   '/organizer/events/new': typeof OrganizerEventsNewRoute
   '/organizer/negotiations/$negotiationId': typeof OrganizerNegotiationsNegotiationIdRoute
@@ -376,7 +370,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/organizer': typeof OrganizerRouteRouteWithChildren
-  '/service-provider': typeof ServiceProviderRouteWithChildren
+  '/service-provider': typeof ServiceProviderRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/distributor': typeof DistributorRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -464,7 +458,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/service-provider'
     | '/dashboard'
     | '/distributor'
     | '/forgot-password'
@@ -492,6 +485,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/events'
     | '/organizer'
+    | '/service-provider'
     | '/services'
     | '/organizer/events/new'
     | '/organizer/negotiations/$negotiationId'
@@ -552,7 +546,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   OrganizerRouteRoute: typeof OrganizerRouteRouteWithChildren
-  ServiceProviderRouteRoute: typeof ServiceProviderRouteRoute
+  ServiceProviderRouteRoute: typeof ServiceProviderRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   DistributorRoute: typeof DistributorRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -562,7 +556,6 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  ServiceProviderRoute: typeof ServiceProviderRouteWithChildren
   SponsorRoute: typeof SponsorRoute
   StaffRoute: typeof StaffRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
@@ -614,13 +607,6 @@ declare module '@tanstack/react-router' {
       path: '/sponsor'
       fullPath: '/sponsor'
       preLoaderRoute: typeof SponsorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/service-provider': {
-      id: '/service-provider'
-      path: '/service-provider'
-      fullPath: '/service-provider'
-      preLoaderRoute: typeof ServiceProviderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -726,7 +712,7 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/service-provider/'
       preLoaderRoute: typeof ServiceProviderIndexRouteImport
-      parentRoute: typeof ServiceProviderRoute
+      parentRoute: typeof ServiceProviderRouteRoute
     }
     '/organizer/': {
       id: '/organizer/'
@@ -838,7 +824,7 @@ declare module '@tanstack/react-router' {
       path: '/negotiations'
       fullPath: '/service-provider/negotiations'
       preLoaderRoute: typeof ServiceProviderNegotiationsIndexRouteImport
-      parentRoute: typeof ServiceProviderRoute
+      parentRoute: typeof ServiceProviderRouteRoute
     }
     '/organizer/negotiations/': {
       id: '/organizer/negotiations/'
@@ -852,14 +838,14 @@ declare module '@tanstack/react-router' {
       path: '/services/new'
       fullPath: '/service-provider/services/new'
       preLoaderRoute: typeof ServiceProviderServicesNewRouteImport
-      parentRoute: typeof ServiceProviderRoute
+      parentRoute: typeof ServiceProviderRouteRoute
     }
     '/service-provider/negotiations/$negotiationId': {
       id: '/service-provider/negotiations/$negotiationId'
       path: '/negotiations/$negotiationId'
       fullPath: '/service-provider/negotiations/$negotiationId'
       preLoaderRoute: typeof ServiceProviderNegotiationsNegotiationIdRouteImport
-      parentRoute: typeof ServiceProviderRoute
+      parentRoute: typeof ServiceProviderRouteRoute
     }
     '/organizer/negotiations/$negotiationId': {
       id: '/organizer/negotiations/$negotiationId'
@@ -880,7 +866,7 @@ declare module '@tanstack/react-router' {
       path: '/services/$serviceId/edit'
       fullPath: '/service-provider/services/$serviceId/edit'
       preLoaderRoute: typeof ServiceProviderServicesServiceIdEditRouteImport
-      parentRoute: typeof ServiceProviderRoute
+      parentRoute: typeof ServiceProviderRouteRoute
     }
     '/organizer/events/$eventId/edit': {
       id: '/organizer/events/$eventId/edit'
@@ -975,7 +961,7 @@ const OrganizerRouteRouteWithChildren = OrganizerRouteRoute._addFileChildren(
   OrganizerRouteRouteChildren,
 )
 
-interface ServiceProviderRouteChildren {
+interface ServiceProviderRouteRouteChildren {
   ServiceProviderIndexRoute: typeof ServiceProviderIndexRoute
   ServiceProviderNegotiationsNegotiationIdRoute: typeof ServiceProviderNegotiationsNegotiationIdRoute
   ServiceProviderServicesNewRoute: typeof ServiceProviderServicesNewRoute
@@ -983,7 +969,7 @@ interface ServiceProviderRouteChildren {
   ServiceProviderServicesServiceIdEditRoute: typeof ServiceProviderServicesServiceIdEditRoute
 }
 
-const ServiceProviderRouteChildren: ServiceProviderRouteChildren = {
+const ServiceProviderRouteRouteChildren: ServiceProviderRouteRouteChildren = {
   ServiceProviderIndexRoute: ServiceProviderIndexRoute,
   ServiceProviderNegotiationsNegotiationIdRoute:
     ServiceProviderNegotiationsNegotiationIdRoute,
@@ -993,15 +979,14 @@ const ServiceProviderRouteChildren: ServiceProviderRouteChildren = {
     ServiceProviderServicesServiceIdEditRoute,
 }
 
-const ServiceProviderRouteWithChildren = ServiceProviderRoute._addFileChildren(
-  ServiceProviderRouteChildren,
-)
+const ServiceProviderRouteRouteWithChildren =
+  ServiceProviderRouteRoute._addFileChildren(ServiceProviderRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   OrganizerRouteRoute: OrganizerRouteRouteWithChildren,
-  ServiceProviderRouteRoute: ServiceProviderRouteRoute,
+  ServiceProviderRouteRoute: ServiceProviderRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   DistributorRoute: DistributorRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
@@ -1011,7 +996,6 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  ServiceProviderRoute: ServiceProviderRouteWithChildren,
   SponsorRoute: SponsorRoute,
   StaffRoute: StaffRoute,
   VerifyEmailRoute: VerifyEmailRoute,
