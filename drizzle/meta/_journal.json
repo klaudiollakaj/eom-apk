@@ -22,6 +22,13 @@
       "when": 1775583104613,
       "tag": "0002_silent_captain_universe",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775645095778,
+      "tag": "0003_dazzling_scarecrow",
+      "breakpoints": true
     }
   ]
 }

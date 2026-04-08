@@ -1,11 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import {
-  eq, and, or, asc, desc, ilike, gte, lte, inArray, count, sql,
+  eq, and, or, asc, desc, ilike, gte, lte, inArray, notInArray, count, sql,
 } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import {
   events, eventImages, eventTags, tags, categories, users, userLogs,
-  publishingPermissions, navigationLinks,
+  publishingPermissions, navigationLinks, negotiations, negotiationRounds, eventServices,
 } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -131,6 +131,12 @@ export const getEvent = createServerFn({ method: 'GET' })
         organizer: { columns: { id: true, name: true, image: true, isActive: true } },
         images: { orderBy: [asc(eventImages.sortOrder)] },
         tags: { with: { tag: true } },
+        eventServices: {
+          with: {
+            provider: { columns: { id: true, name: true, image: true } },
+            service: { columns: { id: true, title: true } },
+          },
+        },
       },
     })
 
@@ -423,6 +429,36 @@ export const cancelEvent = createServerFn({ method: 'POST' })
       .where(eq(events.id, data.id))
       .returning()
 
+    // Cascade-cancel all non-terminal negotiations for this event
+    const terminalStatuses = ['accepted', 'rejected', 'cancelled', 'expired']
+    const activeNegotiations = await db.query.negotiations.findMany({
+      where: and(
+        eq(negotiations.eventId, data.id),
+        notInArray(negotiations.status, terminalStatuses),
+      ),
+    })
+
+    for (const neg of activeNegotiations) {
+      const lastRound = await db.query.negotiationRounds.findFirst({
+        where: eq(negotiationRounds.negotiationId, neg.id),
+        orderBy: (r, { desc }) => [desc(r.roundNumber)],
+      })
+      const nextRound = (lastRound?.roundNumber ?? 0) + 1
+
+      await db.insert(negotiationRounds).values({
+        negotiationId: neg.id,
+        senderId: session.user.id,
+        action: 'cancel',
+        message: 'Event was cancelled by the organizer.',
+        roundNumber: nextRound,
+      })
+
+      await db
+        .update(negotiations)
+        .set({ status: 'cancelled', updatedAt: new Date() })
+        .where(eq(negotiations.id, neg.id))
+    }
+
     await db.insert(userLogs).values({
       userId: session.user.id,
       action: 'event_cancelled',
@@ -474,6 +510,14 @@ export const deleteEvent = createServerFn({ method: 'POST' })
     if (!event) throw new Error('NOT_FOUND')
     if (event.organizerId !== session.user.id) throw new Error('FORBIDDEN')
     if (event.status !== 'draft') throw new Error('ONLY_DRAFT_DELETABLE')
+
+    // Block deletion if any negotiations exist
+    const hasNegotiations = await db.query.negotiations.findFirst({
+      where: eq(negotiations.eventId, data.id),
+    })
+    if (hasNegotiations) {
+      throw new Error('CANNOT_DELETE: Event has negotiations and cannot be deleted')
+    }
 
     const allImageUrls = [
       ...(event.bannerImage ? [event.bannerImage] : []),

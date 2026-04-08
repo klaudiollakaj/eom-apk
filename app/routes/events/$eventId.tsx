@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Header } from '~/components/layout/Header'
 import { Footer } from '~/components/layout/Footer'
+import { EventServicesList } from '~/components/events/EventServicesList'
 import { getNavLinks } from '~/server/fns/navigation'
 import { getEvent } from '~/server/fns/events'
 
@@ -163,6 +164,10 @@ function EventDetailPage() {
             </div>
           </aside>
         </div>
+
+        {event.eventServices && event.eventServices.length > 0 && (
+          <EventServicesList services={event.eventServices} />
+        )}
       </div>
 
       <Footer links={footerLinks} />

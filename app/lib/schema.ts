@@ -223,6 +223,91 @@ export const eventTags = pgTable('event_tags', {
 ])
 
 // ============================================================
+// Phase 3: Service Marketplace + Negotiation Tables
+// ============================================================
+
+export const serviceCategories = pgTable('service_categories', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull().unique(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const services = pgTable('services', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  providerId: text('provider_id').notNull().references(() => users.id),
+  categoryId: text('category_id').notNull().references(() => serviceCategories.id),
+  title: text('title').notNull(),
+  description: text('description'),
+  city: text('city'),
+  country: text('country'),
+  bannerImage: text('banner_image'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const servicePackages = pgTable('service_packages', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  serviceId: text('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  price: numeric('price', { precision: 10, scale: 2 }),
+  priceIsPublic: boolean('price_is_public').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const serviceImages = pgTable('service_images', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  serviceId: text('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
+  imageUrl: text('image_url').notNull(),
+  caption: text('caption'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const negotiations = pgTable('negotiations', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'restrict' }),
+  serviceId: text('service_id').notNull().references(() => services.id, { onDelete: 'restrict' }),
+  packageId: text('package_id').references(() => servicePackages.id),
+  organizerId: text('organizer_id').notNull().references(() => users.id),
+  providerId: text('provider_id').notNull().references(() => users.id),
+  status: text('status').notNull().default('requested'),
+  initiatedBy: text('initiated_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const negotiationRounds = pgTable('negotiation_rounds', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  negotiationId: text('negotiation_id').notNull().references(() => negotiations.id, { onDelete: 'cascade' }),
+  senderId: text('sender_id').notNull().references(() => users.id),
+  action: text('action').notNull(),
+  price: numeric('price', { precision: 10, scale: 2 }),
+  message: text('message'),
+  roundNumber: integer('round_number').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const eventServices = pgTable('event_services', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  serviceId: text('service_id').notNull().references(() => services.id),
+  negotiationId: text('negotiation_id').notNull().references(() => negotiations.id),
+  providerId: text('provider_id').notNull().references(() => users.id),
+  agreedPrice: numeric('agreed_price', { precision: 10, scale: 2 }).notNull(),
+  agreedTerms: text('agreed_terms'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+// ============================================================
 // Relations
 // ============================================================
 
@@ -236,6 +321,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   logs: many(userLogs),
   capabilities: many(userCapabilities),
   events: many(events),
+  services: many(services),
 }))
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -285,6 +371,8 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   category: one(categories, { fields: [events.categoryId], references: [categories.id] }),
   images: many(eventImages),
   tags: many(eventTags),
+  negotiations: many(negotiations),
+  eventServices: many(eventServices),
 }))
 
 export const eventImagesRelations = relations(eventImages, ({ one }) => ({
@@ -298,6 +386,50 @@ export const tagsRelations = relations(tags, ({ many }) => ({
 export const eventTagsRelations = relations(eventTags, ({ one }) => ({
   event: one(events, { fields: [eventTags.eventId], references: [events.id] }),
   tag: one(tags, { fields: [eventTags.tagId], references: [tags.id] }),
+}))
+
+// Phase 3 Relations
+
+export const serviceCategoriesRelations = relations(serviceCategories, ({ many }) => ({
+  services: many(services),
+}))
+
+export const servicesRelations = relations(services, ({ one, many }) => ({
+  provider: one(users, { fields: [services.providerId], references: [users.id] }),
+  category: one(serviceCategories, { fields: [services.categoryId], references: [serviceCategories.id] }),
+  packages: many(servicePackages),
+  images: many(serviceImages),
+  negotiations: many(negotiations),
+}))
+
+export const servicePackagesRelations = relations(servicePackages, ({ one }) => ({
+  service: one(services, { fields: [servicePackages.serviceId], references: [services.id] }),
+}))
+
+export const serviceImagesRelations = relations(serviceImages, ({ one }) => ({
+  service: one(services, { fields: [serviceImages.serviceId], references: [services.id] }),
+}))
+
+export const negotiationsRelations = relations(negotiations, ({ one, many }) => ({
+  event: one(events, { fields: [negotiations.eventId], references: [events.id] }),
+  service: one(services, { fields: [negotiations.serviceId], references: [services.id] }),
+  package: one(servicePackages, { fields: [negotiations.packageId], references: [servicePackages.id] }),
+  organizer: one(users, { fields: [negotiations.organizerId], references: [users.id] }),
+  provider: one(users, { fields: [negotiations.providerId], references: [users.id] }),
+  rounds: many(negotiationRounds),
+  eventService: one(eventServices),
+}))
+
+export const negotiationRoundsRelations = relations(negotiationRounds, ({ one }) => ({
+  negotiation: one(negotiations, { fields: [negotiationRounds.negotiationId], references: [negotiations.id] }),
+  sender: one(users, { fields: [negotiationRounds.senderId], references: [users.id] }),
+}))
+
+export const eventServicesRelations = relations(eventServices, ({ one }) => ({
+  event: one(events, { fields: [eventServices.eventId], references: [events.id] }),
+  service: one(services, { fields: [eventServices.serviceId], references: [services.id] }),
+  negotiation: one(negotiations, { fields: [eventServices.negotiationId], references: [negotiations.id] }),
+  provider: one(users, { fields: [eventServices.providerId], references: [users.id] }),
 }))
 
 // ============================================================

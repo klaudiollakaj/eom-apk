@@ -37,6 +37,21 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     href: '/admin/events',
     capability: 'admin:events:manage',
   },
+  {
+    label: 'Service Categories',
+    href: '/admin/service-categories',
+    capability: 'admin:service-categories:manage',
+  },
+  {
+    label: 'Services',
+    href: '/admin/services',
+    capability: 'admin:services:manage',
+  },
+  {
+    label: 'Negotiations',
+    href: '/admin/negotiations',
+    capability: 'admin:negotiations:manage',
+  },
 ]
 
 export function AdminSidebar({

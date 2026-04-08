@@ -12,7 +12,8 @@
     "db:seed:superadmin": "npx tsx scripts/seed-superadmin.ts",
     "db:seed:navigation": "npx tsx scripts/seed-navigation.ts",
     "db:seed:categories": "npx tsx scripts/seed-categories.ts",
-    "db:seed": "npm run db:seed:superadmin && npm run db:seed:navigation && npm run db:seed:categories"
+    "db:seed:service-categories": "npx tsx scripts/seed-service-categories.ts",
+    "db:seed": "npm run db:seed:superadmin && npm run db:seed:navigation && npm run db:seed:categories && npm run db:seed:service-categories"
   },
   "keywords": [],
   "author": "",
