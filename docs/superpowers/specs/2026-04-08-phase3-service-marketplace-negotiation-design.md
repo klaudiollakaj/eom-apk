@@ -45,6 +45,7 @@ Each package has:
 - Name, description
 - Price (nullable — null = "Request a quote")
 - `priceIsPublic` boolean — controls whether price is shown or hidden
+- `sortOrder` — display ordering
 
 ### Price Visibility
 
@@ -69,9 +70,13 @@ Content filtering: queries exclude services from suspended/inactive users (`isAc
 
 ### Entry Points
 
-1. **Quote Request** (hidden price) — Organizer requests a quote for a specific service/package tied to their event. Creates negotiation in `requested` status. Provider responds with an offer.
-2. **Direct Offer** (public price) — Organizer sends an offer with proposed price + message, tied to their event. Creates negotiation in `offered` status.
-3. **Provider-Initiated Offer** — Provider sends an unsolicited offer to an organizer for a specific event. Creates negotiation in `offered` status.
+1. **Quote Request** (hidden price) — Organizer requests a quote for a specific service/package tied to their event. Creates negotiation in `requested` status. No initial round is created — provider responds with the first offer.
+2. **Direct Offer** (public price) — Organizer sends an offer with proposed price + message, tied to their event. Creates negotiation in `offered` status with an initial round.
+3. **Provider-Initiated Offer** — Provider sends an unsolicited offer to an organizer for a specific published event. Creates negotiation in `offered` status with an initial round. Event must be in `published` status.
+
+### Duplicate Prevention
+
+A provider cannot have multiple active (non-terminal) negotiations for the same service + event combination. Attempting to create a duplicate returns an error.
 
 ### State Machine
 
@@ -90,29 +95,40 @@ requested ────────► │  offered  ◄────►  countere
 ```
 
 **States:**
-- `requested` — Organizer asked for a quote (hidden-price only)
-- `offered` — An offer with price + terms is on the table
-- `countered` — A counteroffer was made (loops back to offered on next response)
+- `requested` — Organizer asked for a quote (hidden-price only). Only valid transition: provider sends offer → `offered`, or either party cancels.
+- `offered` — An offer with price + terms is on the table. Receiving party can accept, reject, or counter.
+- `countered` — A counteroffer was made. Receiving party can accept, reject, or counter (→ back to `offered`).
 - `accepted` — Deal agreed → provider linked to event (terminal)
 - `rejected` — One side declined (terminal)
 - `cancelled` — Either party withdrew (terminal)
-- `expired` — No response within expiry window (terminal)
+- `expired` — No response within 14 days (terminal). Checked lazily on read — when loading a negotiation, if `updatedAt` is older than 14 days and status is `requested`/`offered`/`countered`, automatically transition to `expired`. No cron job needed.
+
+**Why both `offered` and `countered`?** They enable distinct UI: `offered` means the current party needs to respond to an initial offer; `countered` signals an ongoing back-and-forth. The UI shows "New Offer" vs "Counteroffer" labels accordingly.
+
+### Event Cancellation Cascade
+
+When an event is cancelled (`cancelEvent`), all non-terminal negotiations for that event are automatically set to `cancelled` with the reason stored in the latest round's message as "Event was cancelled by the organizer."
+
+When an event is deleted (drafts only), it is blocked if any negotiations exist (even draft events can have negotiations if the organizer shared the event ID). Application-level check, not DB cascade.
 
 ### Negotiation Rounds
 
 Each round in the negotiation thread contains:
 - **senderId** — who sent this round
-- **price** — the proposed amount
+- **price** — the proposed amount (nullable — null for quote requests and accept/reject actions)
 - **message** — terms, conditions, notes (free text)
+- **action** — 'offer' | 'counter' | 'accept' | 'reject' | 'cancel'
 - **roundNumber** — sequential counter
 
 The receiving party can **accept**, **reject**, or **counter** (with new price + message). Unlimited rounds.
+
+Rounds are **immutable** once created — no `updatedAt` needed.
 
 ### On Accept
 
 When a negotiation is accepted:
 - A record is created in `event_services` linking the provider to the event
-- The agreed price and terms are stored
+- The agreed price and terms are taken from the last offer/counter round
 - The service provider appears on the event detail page
 
 ---
@@ -120,14 +136,17 @@ When a negotiation is accepted:
 ## 5. Permissions & Enforcement
 
 - Only `service_provider` role can create/manage service listings
-- Only `organizer` role can create events and initiate quote requests / direct offers
-- Provider-initiated offers require `service_provider` role
+- Only `organizer` role can initiate quote requests / direct offers
+- Provider-initiated offers require `service_provider` role and target event must be `published`
 - **Suspension enforcement**: suspended users (`isSuspended = true`) cannot create services, initiate negotiations, or respond to rounds
 - **Content filtering**: all public queries filter by `user.isActive = true`
 - **Ownership**: users can only modify their own services and respond to their own negotiations
 - Unlimited active negotiations per event (no cap)
+- Duplicate prevention: one active negotiation per provider+service+event combo
 
 ### New Capabilities
+
+Must be added to `VALID_CAPABILITY_PREFIXES` in `app/server/fns/capabilities.ts`:
 
 - `admin:service-categories:manage` — CRUD service categories
 - `admin:services:manage` — moderate/remove service listings
@@ -175,6 +194,7 @@ When a negotiation is accepted:
 | description | text | nullable |
 | price | numeric(10,2) | nullable (null = "request a quote") |
 | priceIsPublic | boolean | default true |
+| sortOrder | integer | default 0 |
 | createdAt | timestamp | NOT NULL |
 | updatedAt | timestamp | NOT NULL |
 
@@ -186,13 +206,14 @@ When a negotiation is accepted:
 | imageUrl | text | NOT NULL |
 | caption | text | nullable |
 | sortOrder | integer | default 0 |
+| createdAt | timestamp | NOT NULL |
 
 #### `negotiations`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | text (UUID) | PK |
-| eventId | text | FK → events, NOT NULL |
-| serviceId | text | FK → services, NOT NULL |
+| eventId | text | FK → events, NOT NULL, onDelete restrict |
+| serviceId | text | FK → services, NOT NULL, onDelete restrict |
 | packageId | text | FK → service_packages, nullable |
 | organizerId | text | FK → users, NOT NULL |
 | providerId | text | FK → users, NOT NULL |
@@ -201,22 +222,27 @@ When a negotiation is accepted:
 | createdAt | timestamp | NOT NULL |
 | updatedAt | timestamp | NOT NULL |
 
+FK behavior: `onDelete: 'restrict'` on both eventId and serviceId — prevents deleting events/services that have negotiations. Application-level checks enforce this before attempting deletion.
+
 #### `negotiation_rounds`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | text (UUID) | PK |
 | negotiationId | text | FK → negotiations, NOT NULL, onDelete cascade |
 | senderId | text | FK → users, NOT NULL |
-| price | numeric(10,2) | NOT NULL |
+| action | text | 'offer' / 'counter' / 'accept' / 'reject' / 'cancel' |
+| price | numeric(10,2) | nullable (null for quote requests, accept, reject, cancel) |
 | message | text | nullable |
 | roundNumber | integer | NOT NULL |
 | createdAt | timestamp | NOT NULL |
+
+Rounds are immutable — no `updatedAt`. Created once, never modified.
 
 #### `event_services`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | text (UUID) | PK |
-| eventId | text | FK → events, NOT NULL |
+| eventId | text | FK → events, NOT NULL, onDelete cascade |
 | serviceId | text | FK → services, NOT NULL |
 | negotiationId | text | FK → negotiations, NOT NULL |
 | providerId | text | FK → users, NOT NULL |
@@ -242,7 +268,7 @@ When a negotiation is accepted:
 |----------|--------|------|-------------|
 | `createService` | POST | service_provider | Create listing with category, description, images |
 | `updateService` | POST | service_provider (owner) | Edit listing details |
-| `deleteService` | POST | service_provider (owner) | Remove listing (reject if active negotiations) |
+| `deleteService` | POST | service_provider (owner) | Remove listing (reject if any negotiations exist) |
 | `listMyServices` | GET | service_provider | Provider's own listings |
 | `createPackage` | POST | service_provider (owner) | Add package to service |
 | `updatePackage` | POST | service_provider (owner) | Edit package |
@@ -260,13 +286,13 @@ When a negotiation is accepted:
 
 | Function | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `requestQuote` | POST | organizer | Request quote for hidden-price service, tied to event |
-| `sendOffer` | POST | organizer | Direct offer with price + message, tied to event |
-| `sendProviderOffer` | POST | service_provider | Provider initiates offer for a specific event |
-| `respondToNegotiation` | POST | organizer/provider | Accept, reject, or counter (new price + message) |
+| `requestQuote` | POST | organizer | Request quote for hidden-price service, tied to event. Checks duplicate. |
+| `sendOffer` | POST | organizer | Direct offer with price + message, tied to event. Checks duplicate. |
+| `sendProviderOffer` | POST | service_provider | Provider initiates offer for a specific published event. Checks duplicate. |
+| `respondToNegotiation` | POST | organizer/provider | Accept, reject, or counter (with new price + message) |
 | `cancelNegotiation` | POST | organizer/provider | Withdraw from negotiation |
 | `listMyNegotiations` | GET | organizer/provider | All negotiations, filterable by status |
-| `getNegotiation` | GET | organizer/provider | Full thread with all rounds |
+| `getNegotiation` | GET | organizer/provider | Full thread with all rounds. Checks expiry on read. |
 
 ### Admin
 
@@ -314,7 +340,7 @@ When a negotiation is accepted:
 - `PackageCard` — Package display with price or "Request a Quote" button
 
 ### Negotiation Components
-- `NegotiationThread` — Chat-like view of all rounds (price, message, timestamp, sender)
+- `NegotiationThread` — Chat-like view of all rounds (price, message, timestamp, sender, action type)
 - `NegotiationActions` — Accept / Reject / Counter buttons with counter form
 - `NegotiationStatusBadge` — Color-coded status (requested=amber, offered=blue, countered=indigo, accepted=green, rejected=red, cancelled/expired=gray)
 - `NegotiationCard` — List item (event name, other party, status, last price, last activity)
@@ -346,6 +372,10 @@ When a negotiation is accepted:
 - `scripts/seed-service-categories.ts` — Seeds default service categories:
   DJ, Catering, Photography, Videography, Security, Lighting & Sound, Venue, Transportation, Decoration, Entertainment, Planning & Coordination, Other
 
+### Event Cancellation Update
+- Modify `cancelEvent` in `app/server/fns/events.ts` to cascade-cancel all non-terminal negotiations for the event
+- Modify `deleteEvent` to block deletion if any negotiations exist
+
 ---
 
 ## 12. Testing Checklist
@@ -356,6 +386,7 @@ When a negotiation is accepted:
 - [ ] Provider can upload portfolio images
 - [ ] Provider can deactivate a service listing
 - [ ] Non-providers cannot create services
+- [ ] Provider cannot delete a service with existing negotiations
 
 ### Discovery
 - [ ] Public browse page shows active services from active providers
@@ -365,19 +396,24 @@ When a negotiation is accepted:
 - [ ] Suspended/inactive providers' services are hidden
 
 ### Negotiations
-- [ ] Organizer can request a quote (hidden price) → status: requested
-- [ ] Organizer can send a direct offer (public price) → status: offered
-- [ ] Provider can send an offer to organizer for an event → status: offered
+- [ ] Organizer can request a quote (hidden price) → status: requested, no initial round
+- [ ] Organizer can send a direct offer (public price) → status: offered, initial round created
+- [ ] Provider can send an offer to organizer for a published event → status: offered
 - [ ] Provider responds to quote request with offer → status: offered
-- [ ] Either party can counter → status: countered, loops back
+- [ ] Either party can counter → status: countered/offered loop
 - [ ] Either party can accept → status: accepted, event_services record created
 - [ ] Either party can reject → status: rejected (terminal)
 - [ ] Either party can cancel → status: cancelled (terminal)
+- [ ] Duplicate negotiation (same provider+service+event) is blocked
+- [ ] Provider-initiated offer blocked for non-published events
 - [ ] Suspended users cannot create or respond to negotiations
-- [ ] Negotiation thread shows all rounds with correct sender/price/message
+- [ ] Negotiation thread shows all rounds with correct sender/price/message/action
 - [ ] Accepted provider appears on event detail page
+- [ ] Stale negotiations auto-expire after 14 days on read
+- [ ] Event cancellation cascades to cancel active negotiations
 
 ### Admin
 - [ ] Admin can manage service categories
 - [ ] Admin can view/moderate services
 - [ ] Admin can view negotiations
+- [ ] New capabilities added to VALID_CAPABILITY_PREFIXES
