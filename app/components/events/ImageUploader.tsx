@@ -1,5 +1,8 @@
 import { useState, useRef } from 'react'
-import { getUploadUrl } from '~/server/fns/uploads'
+import { generateReactHelpers } from '@uploadthing/react'
+import type { UploadRouter } from '~/server/uploadthing'
+
+const { useUploadThing } = generateReactHelpers<UploadRouter>()
 
 interface ImageUploaderProps {
   value: string | null
@@ -9,11 +12,22 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ value, onChange, purpose, label }: ImageUploaderProps) {
-  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  async function handleFile(file: File) {
+  const endpoint = purpose === 'banner' ? 'bannerImage' : 'galleryImage'
+
+  const { startUpload, isUploading } = useUploadThing(endpoint, {
+    onClientUploadComplete: (res) => {
+      if (res?.[0]) {
+        onChange(res[0].ufsUrl)
+      }
+    },
+    onUploadError: () => {
+      setError('Upload failed. Please try again.')
+    },
+  })
+
+  function handleFile(file: File) {
     if (!file.type.startsWith('image/')) {
       setError('Please select an image file')
       return
@@ -23,28 +37,11 @@ export function ImageUploader({ value, onChange, purpose, label }: ImageUploader
       return
     }
 
-    setUploading(true)
     setError(null)
-
-    try {
-      const { uploadUrl, publicUrl } = await getUploadUrl({
-        data: { filename: file.name, contentType: file.type, purpose },
-      })
-
-      const res = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
-      })
-
-      if (!res.ok) throw new Error('Upload failed')
-      onChange(publicUrl)
-    } catch (err) {
-      setError('Upload failed. Please try again.')
-    } finally {
-      setUploading(false)
-    }
+    startUpload([file])
   }
+
+  const inputRef = useRef<HTMLInputElement>(null)
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
@@ -73,7 +70,7 @@ export function ImageUploader({ value, onChange, purpose, label }: ImageUploader
           onClick={() => inputRef.current?.click()}
           className="flex h-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 hover:border-indigo-500 dark:border-gray-600 dark:hover:border-indigo-400"
         >
-          {uploading ? (
+          {isUploading ? (
             <p className="text-sm text-gray-500">Uploading...</p>
           ) : (
             <>

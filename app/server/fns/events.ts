@@ -11,7 +11,7 @@ import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
 import { isAdmin, type Role } from '~/lib/permissions'
 import { findOrCreateTag } from './tags'
-import { bucket, getKeyFromUrl } from '~/lib/storage'
+import { utapi, getKeyFromUrl } from '~/lib/storage'
 import DOMPurify from 'isomorphic-dompurify'
 
 function sanitizeHtml(html: string): string {
@@ -525,7 +525,7 @@ export const deleteEvent = createServerFn({ method: 'POST' })
     for (const url of allImageUrls) {
       const key = getKeyFromUrl(url)
       try {
-        await bucket.file(key).delete()
+        await utapi.deleteFiles(key)
       } catch {}
     }
 
