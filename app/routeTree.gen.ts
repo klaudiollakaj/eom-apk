@@ -44,6 +44,7 @@ import { Route as AdminNegotiationsRouteImport } from './routes/admin/negotiatio
 import { Route as AdminNavigationRouteImport } from './routes/admin/navigation'
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
+import { Route as AdminChatRouteImport } from './routes/admin/chat'
 import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
 import { Route as AdminCapabilitiesRouteImport } from './routes/admin/capabilities'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
@@ -56,6 +57,7 @@ import { Route as OrganizerEventsNewRouteImport } from './routes/organizer/event
 import { Route as ServiceProviderServicesServiceIdEditRouteImport } from './routes/service-provider/services/$serviceId.edit'
 import { Route as OrganizerEventsEventIdEditRouteImport } from './routes/organizer/events/$eventId.edit'
 import { Route as AdminUsersUserIdCapsRouteImport } from './routes/admin/users.$userId.caps'
+import { ServerRoute as ApiChatStreamServerRouteImport } from './routes/api/chat-stream'
 import { ServerRoute as ApiAuthSplatServerRouteImport } from './routes/api/auth.$'
 
 const rootServerRouteImport = createServerRootRoute()
@@ -226,6 +228,11 @@ const AdminEventsRoute = AdminEventsRouteImport.update({
   path: '/events',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminChatRoute = AdminChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   id: '/categories',
   path: '/categories',
@@ -293,6 +300,11 @@ const AdminUsersUserIdCapsRoute = AdminUsersUserIdCapsRouteImport.update({
   path: '/$userId/caps',
   getParentRoute: () => AdminUsersRoute,
 } as any)
+const ApiChatStreamServerRoute = ApiChatStreamServerRouteImport.update({
+  id: '/api/chat-stream',
+  path: '/api/chat-stream',
+  getParentRoute: () => rootServerRouteImport,
+} as any)
 const ApiAuthSplatServerRoute = ApiAuthSplatServerRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -319,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/capabilities': typeof AdminCapabilitiesRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/navigation': typeof AdminNavigationRoute
@@ -363,6 +376,7 @@ export interface FileRoutesByTo {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/capabilities': typeof AdminCapabilitiesRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/navigation': typeof AdminNavigationRoute
@@ -411,6 +425,7 @@ export interface FileRoutesById {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/capabilities': typeof AdminCapabilitiesRoute
   '/admin/categories': typeof AdminCategoriesRoute
+  '/admin/chat': typeof AdminChatRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/navigation': typeof AdminNavigationRoute
@@ -460,6 +475,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/capabilities'
     | '/admin/categories'
+    | '/admin/chat'
     | '/admin/events'
     | '/admin/logs'
     | '/admin/navigation'
@@ -504,6 +520,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/capabilities'
     | '/admin/categories'
+    | '/admin/chat'
     | '/admin/events'
     | '/admin/logs'
     | '/admin/navigation'
@@ -551,6 +568,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/capabilities'
     | '/admin/categories'
+    | '/admin/chat'
     | '/admin/events'
     | '/admin/logs'
     | '/admin/navigation'
@@ -602,24 +620,28 @@ export interface RootRouteChildren {
   ServicesIndexRoute: typeof ServicesIndexRoute
 }
 export interface FileServerRoutesByFullPath {
+  '/api/chat-stream': typeof ApiChatStreamServerRoute
   '/api/auth/$': typeof ApiAuthSplatServerRoute
 }
 export interface FileServerRoutesByTo {
+  '/api/chat-stream': typeof ApiChatStreamServerRoute
   '/api/auth/$': typeof ApiAuthSplatServerRoute
 }
 export interface FileServerRoutesById {
   __root__: typeof rootServerRouteImport
+  '/api/chat-stream': typeof ApiChatStreamServerRoute
   '/api/auth/$': typeof ApiAuthSplatServerRoute
 }
 export interface FileServerRouteTypes {
   fileServerRoutesByFullPath: FileServerRoutesByFullPath
-  fullPaths: '/api/auth/$'
+  fullPaths: '/api/chat-stream' | '/api/auth/$'
   fileServerRoutesByTo: FileServerRoutesByTo
-  to: '/api/auth/$'
-  id: '__root__' | '/api/auth/$'
+  to: '/api/chat-stream' | '/api/auth/$'
+  id: '__root__' | '/api/chat-stream' | '/api/auth/$'
   fileServerRoutesById: FileServerRoutesById
 }
 export interface RootServerRouteChildren {
+  ApiChatStreamServerRoute: typeof ApiChatStreamServerRoute
   ApiAuthSplatServerRoute: typeof ApiAuthSplatServerRoute
 }
 
@@ -856,6 +878,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEventsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/chat': {
+      id: '/admin/chat'
+      path: '/chat'
+      fullPath: '/admin/chat'
+      preLoaderRoute: typeof AdminChatRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/categories': {
       id: '/admin/categories'
       path: '/categories'
@@ -944,6 +973,13 @@ declare module '@tanstack/react-router' {
 }
 declare module '@tanstack/react-start/server' {
   interface ServerFileRoutesByPath {
+    '/api/chat-stream': {
+      id: '/api/chat-stream'
+      path: '/api/chat-stream'
+      fullPath: '/api/chat-stream'
+      preLoaderRoute: typeof ApiChatStreamServerRouteImport
+      parentRoute: typeof rootServerRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -970,6 +1006,7 @@ interface AdminRouteRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminCapabilitiesRoute: typeof AdminCapabilitiesRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
+  AdminChatRoute: typeof AdminChatRoute
   AdminEventsRoute: typeof AdminEventsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminNavigationRoute: typeof AdminNavigationRoute
@@ -986,6 +1023,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminCapabilitiesRoute: AdminCapabilitiesRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
+  AdminChatRoute: AdminChatRoute,
   AdminEventsRoute: AdminEventsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminNavigationRoute: AdminNavigationRoute,
@@ -1072,6 +1110,7 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 const rootServerRouteChildren: RootServerRouteChildren = {
+  ApiChatStreamServerRoute: ApiChatStreamServerRoute,
   ApiAuthSplatServerRoute: ApiAuthSplatServerRoute,
 }
 export const serverRouteTree = rootServerRouteImport

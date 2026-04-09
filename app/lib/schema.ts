@@ -9,6 +9,7 @@ import {
   unique,
   numeric,
   primaryKey,
+  index,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
@@ -324,6 +325,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   services: many(services),
   reviewsAsReviewer: many(reviews, { relationName: 'reviewer' }),
   reviewsAsReviewee: many(reviews, { relationName: 'reviewee' }),
+  sentMessages: many(messages),
 }))
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -419,6 +421,7 @@ export const negotiationsRelations = relations(negotiations, ({ one, many }) => 
   organizer: one(users, { fields: [negotiations.organizerId], references: [users.id] }),
   provider: one(users, { fields: [negotiations.providerId], references: [users.id] }),
   rounds: many(negotiationRounds),
+  messages: many(messages),
   eventService: one(eventServices),
 }))
 
@@ -462,6 +465,60 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   eventService: one(eventServices, { fields: [reviews.eventServiceId], references: [eventServices.id] }),
   reviewer: one(users, { fields: [reviews.reviewerId], references: [users.id], relationName: 'reviewer' }),
   reviewee: one(users, { fields: [reviews.revieweeId], references: [users.id], relationName: 'reviewee' }),
+}))
+
+// ============================================================
+// Chat / Messaging
+// ============================================================
+
+export const messages = pgTable('messages', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  negotiationId: text('negotiation_id').notNull().references(() => negotiations.id, { onDelete: 'cascade' }),
+  senderId: text('sender_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('messages_negotiation_created_idx').on(table.negotiationId, table.createdAt),
+])
+
+export const messageFlags = pgTable('message_flags', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  messageId: text('message_id').notNull().references(() => messages.id, { onDelete: 'cascade' }),
+  flagType: text('flag_type').notNull(),
+  matchedContent: text('matched_content').notNull(),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: text('resolved_by').references(() => users.id),
+  resolution: text('resolution'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('message_flags_message_idx').on(table.messageId),
+  index('message_flags_resolved_idx').on(table.resolvedAt),
+])
+
+export const messageReadReceipts = pgTable('message_read_receipts', {
+  negotiationId: text('negotiation_id').notNull().references(() => negotiations.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id),
+  lastReadAt: timestamp('last_read_at').notNull(),
+  lastReadMessageId: text('last_read_message_id').notNull().references(() => messages.id),
+}, (table) => [
+  primaryKey({ columns: [table.negotiationId, table.userId] }),
+])
+
+export const messagesRelations = relations(messages, ({ one, many }) => ({
+  negotiation: one(negotiations, { fields: [messages.negotiationId], references: [negotiations.id] }),
+  sender: one(users, { fields: [messages.senderId], references: [users.id] }),
+  flags: many(messageFlags),
+}))
+
+export const messageFlagsRelations = relations(messageFlags, ({ one }) => ({
+  message: one(messages, { fields: [messageFlags.messageId], references: [messages.id] }),
+  resolvedByUser: one(users, { fields: [messageFlags.resolvedBy], references: [users.id] }),
+}))
+
+export const messageReadReceiptsRelations = relations(messageReadReceipts, ({ one }) => ({
+  negotiation: one(negotiations, { fields: [messageReadReceipts.negotiationId], references: [negotiations.id] }),
+  user: one(users, { fields: [messageReadReceipts.userId], references: [users.id] }),
+  lastReadMessage: one(messages, { fields: [messageReadReceipts.lastReadMessageId], references: [messages.id] }),
 }))
 
 // ============================================================

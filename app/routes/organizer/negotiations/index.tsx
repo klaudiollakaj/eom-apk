@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { listMyNegotiations } from '~/server/fns/negotiations'
+import { getUnreadCounts } from '~/server/fns/chat'
 import { NegotiationCard } from '~/components/negotiations/NegotiationCard'
 
 export const Route = createFileRoute('/organizer/negotiations/')({
@@ -10,10 +11,15 @@ export const Route = createFileRoute('/organizer/negotiations/')({
 function OrganizerNegotiationsPage() {
   const [negotiations, setNegotiations] = useState<any[]>([])
   const [statusFilter, setStatusFilter] = useState('')
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     listMyNegotiations({ data: { status: statusFilter || undefined } }).then(setNegotiations)
   }, [statusFilter])
+
+  useEffect(() => {
+    getUnreadCounts().then(setUnreadCounts)
+  }, [])
 
   const STATUSES = ['', 'requested', 'offered', 'countered', 'accepted', 'rejected', 'cancelled', 'expired']
 
@@ -45,6 +51,7 @@ function OrganizerNegotiationsPage() {
             lastPrice={n.rounds?.[0]?.price ?? null}
             updatedAt={n.updatedAt}
             linkPrefix="/organizer/negotiations"
+            unreadCount={unreadCounts[n.id] ?? 0}
           />
         ))}
         {negotiations.length === 0 && <p className="text-gray-500">No negotiations yet.</p>}

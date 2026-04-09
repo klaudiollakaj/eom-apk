@@ -36,6 +36,13 @@
       "when": 1775723417180,
       "tag": "0004_magenta_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775755063575,
+      "tag": "0005_wild_wolverine",
+      "breakpoints": true
     }
   ]
 }

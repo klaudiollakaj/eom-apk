@@ -1,6 +1,7 @@
 // app/components/negotiations/NegotiationCard.tsx
 import { Link } from '@tanstack/react-router'
 import { NegotiationStatusBadge } from './NegotiationStatusBadge'
+import { ChatUnreadBadge } from '~/components/chat/ChatUnreadBadge'
 
 interface NegotiationCardProps {
   id: string
@@ -10,11 +11,12 @@ interface NegotiationCardProps {
   otherParty: { name: string; image: string | null }
   lastPrice: string | null
   updatedAt: string
-  linkPrefix: string // '/organizer/negotiations' or '/service-provider/negotiations'
+  linkPrefix: string
+  unreadCount?: number
 }
 
 export function NegotiationCard({
-  id, status, event, service, otherParty, lastPrice, updatedAt, linkPrefix,
+  id, status, event, service, otherParty, lastPrice, updatedAt, linkPrefix, unreadCount,
 }: NegotiationCardProps) {
   const timeAgo = new Date(updatedAt).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
@@ -27,7 +29,10 @@ export function NegotiationCard({
     >
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold">{service.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">{service.title}</h3>
+            {unreadCount != null && unreadCount > 0 && <ChatUnreadBadge count={unreadCount} />}
+          </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">for {event.title}</p>
           <div className="mt-1 flex items-center gap-2">
             {otherParty.image && (

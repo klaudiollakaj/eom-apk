@@ -79,6 +79,7 @@ export const updateUserCapability = createServerFn({ method: 'POST' })
       'admin:negotiations:manage',
       'admin:analytics:view',
       'admin:reviews:moderate',
+      'admin:chat:moderate',
     ]
     const isValidKey = VALID_CAPABILITY_PREFIXES.some(
       (prefix) =>

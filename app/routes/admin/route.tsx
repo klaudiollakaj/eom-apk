@@ -43,6 +43,7 @@ function AdminLayout() {
           'admin:negotiations:manage',
           'admin:analytics:view',
           'admin:reviews:moderate',
+          'admin:chat:moderate',
         ]
       : (capabilities as string[])
 

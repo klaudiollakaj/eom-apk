@@ -1,21 +1,29 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useCallback } from 'react'
 import { getNegotiation, respondToNegotiation, cancelNegotiation } from '~/server/fns/negotiations'
+import { getChatStatus } from '~/server/fns/chat'
 import { NegotiationThread } from '~/components/negotiations/NegotiationThread'
 import { NegotiationActions } from '~/components/negotiations/NegotiationActions'
 import { NegotiationStatusBadge } from '~/components/negotiations/NegotiationStatusBadge'
+import { ChatTab } from '~/components/chat/ChatTab'
 import { useSession } from '~/lib/auth-client'
 
 export const Route = createFileRoute('/service-provider/negotiations/$negotiationId')({
   loader: async ({ params }) => {
     const negotiation = await getNegotiation({ data: { negotiationId: params.negotiationId } })
-    return { negotiation }
+    let chatStatus: { status: 'active' | 'readonly' | 'locked' } = { status: 'locked' }
+    try {
+      chatStatus = await getChatStatus({ data: { negotiationId: params.negotiationId } })
+    } catch {}
+    return { negotiation, chatStatus }
   },
   component: ProviderNegotiationDetailPage,
 })
 
 function ProviderNegotiationDetailPage() {
+  const { chatStatus: initialChatStatus } = Route.useLoaderData()
   const [negotiation, setNegotiation] = useState(Route.useLoaderData().negotiation)
+  const [activeTab, setActiveTab] = useState<'negotiation' | 'chat'>('negotiation')
   const session = useSession()
   const userId = session.data?.user?.id ?? ''
 
@@ -23,6 +31,7 @@ function ProviderNegotiationDetailPage() {
   const lastRound = negotiation.rounds?.[negotiation.rounds.length - 1]
   const isMyTurn = lastRound ? lastRound.senderId !== userId : negotiation.status === 'requested' && isProvider
   const isQuoteRequest = negotiation.status === 'requested' && isProvider
+  const showChatTab = initialChatStatus.status !== 'locked'
 
   const reload = useCallback(async () => {
     const updated = await getNegotiation({ data: { negotiationId: negotiation.id } })
@@ -51,18 +60,48 @@ function ProviderNegotiationDetailPage() {
         <NegotiationStatusBadge status={negotiation.status} />
       </div>
 
-      <NegotiationThread rounds={negotiation.rounds ?? []} currentUserId={userId} />
+      {showChatTab && (
+        <div className="mb-6 flex border-b dark:border-gray-700">
+          <button
+            onClick={() => setActiveTab('negotiation')}
+            className={`px-4 py-3 text-sm font-medium ${
+              activeTab === 'negotiation'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Negotiation
+          </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-4 py-3 text-sm font-medium ${
+              activeTab === 'chat'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Chat
+          </button>
+        </div>
+      )}
 
-      <div className="mt-6">
-        <NegotiationActions
-          negotiationId={negotiation.id}
-          status={negotiation.status}
-          canRespond={isMyTurn}
-          onRespond={handleRespond}
-          onCancel={handleCancel}
-          isQuoteRequest={isQuoteRequest}
-        />
-      </div>
+      {activeTab === 'negotiation' ? (
+        <>
+          <NegotiationThread rounds={negotiation.rounds ?? []} currentUserId={userId} />
+          <div className="mt-6">
+            <NegotiationActions
+              negotiationId={negotiation.id}
+              status={negotiation.status}
+              canRespond={isMyTurn}
+              onRespond={handleRespond}
+              onCancel={handleCancel}
+              isQuoteRequest={isQuoteRequest}
+            />
+          </div>
+        </>
+      ) : (
+        <ChatTab negotiationId={negotiation.id} currentUserId={userId} />
+      )}
     </div>
   )
 }
