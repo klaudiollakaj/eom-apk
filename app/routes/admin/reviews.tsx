@@ -13,9 +13,14 @@ function AdminReviewsPage() {
 
   async function fetchReviews() {
     setLoading(true)
-    const result = await getReportedReviews({ data: {} })
-    setData(result)
-    setLoading(false)
+    try {
+      const result = await getReportedReviews({ data: {} })
+      setData(result)
+    } catch (err) {
+      console.error('Failed to fetch reported reviews:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { fetchReviews() }, [])
