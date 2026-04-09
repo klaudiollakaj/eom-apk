@@ -1,10 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { eq } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import { eventImages, events } from '~/lib/schema'
-import { r2, R2_BUCKET, R2_PUBLIC_URL } from '~/lib/r2'
+import { bucket, getPublicUrl, getKeyFromUrl } from '~/lib/storage'
 import { requireAuth } from './auth-helpers'
 
 export const getUploadUrl = createServerFn({ method: 'POST' })
@@ -20,14 +18,15 @@ export const getUploadUrl = createServerFn({ method: 'POST' })
     const safeName = data.filename.replace(/[^a-zA-Z0-9._-]/g, '_')
     const key = `uploads/${session.user.id}/${data.purpose}/${timestamp}-${safeName}`
 
-    const command = new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: key,
-      ContentType: data.contentType,
+    const file = bucket.file(key)
+    const [uploadUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + 10 * 60 * 1000, // 10 minutes
+      contentType: data.contentType,
     })
 
-    const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 600 })
-    const publicUrl = `${R2_PUBLIC_URL}/${key}`
+    const publicUrl = getPublicUrl(key)
 
     return { uploadUrl, publicUrl }
   })
@@ -44,8 +43,8 @@ export const deleteImage = createServerFn({ method: 'POST' })
     if (!image) throw new Error('NOT_FOUND')
     if (image.event.organizerId !== session.user.id) throw new Error('FORBIDDEN')
 
-    const key = image.imageUrl.replace(`${R2_PUBLIC_URL}/`, '')
-    await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }))
+    const key = getKeyFromUrl(image.imageUrl)
+    await bucket.file(key).delete()
 
     await db.delete(eventImages).where(eq(eventImages.id, data.imageId))
   })

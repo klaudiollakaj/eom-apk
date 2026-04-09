@@ -11,8 +11,7 @@ import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
 import { isAdmin, type Role } from '~/lib/permissions'
 import { findOrCreateTag } from './tags'
-import { DeleteObjectCommand } from '@aws-sdk/client-s3'
-import { r2, R2_BUCKET, R2_PUBLIC_URL } from '~/lib/r2'
+import { bucket, getKeyFromUrl } from '~/lib/storage'
 import DOMPurify from 'isomorphic-dompurify'
 
 function sanitizeHtml(html: string): string {
@@ -524,9 +523,9 @@ export const deleteEvent = createServerFn({ method: 'POST' })
       ...event.images.map((img) => img.imageUrl),
     ]
     for (const url of allImageUrls) {
-      const key = url.replace(`${R2_PUBLIC_URL}/`, '')
+      const key = getKeyFromUrl(url)
       try {
-        await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }))
+        await bucket.file(key).delete()
       } catch {}
     }
 
