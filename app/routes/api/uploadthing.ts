@@ -2,14 +2,20 @@ import { createServerFileRoute } from '@tanstack/react-start/server'
 import { createRouteHandler } from 'uploadthing/server'
 import { uploadRouter } from '~/server/uploadthing'
 
-const handler = createRouteHandler({
-  router: uploadRouter,
-  config: { token: process.env.UPLOADTHING_TOKEN },
-})
+let _handler: ReturnType<typeof createRouteHandler> | null = null
+function getHandler() {
+  if (!_handler) {
+    _handler = createRouteHandler({
+      router: uploadRouter,
+      config: { token: process.env.UPLOADTHING_TOKEN },
+    })
+  }
+  return _handler
+}
 
 export const ServerRoute = createServerFileRoute('/api/uploadthing').methods({
   GET: ({ request }) => {
-    return handler(request)
+    return getHandler()(request)
   },
   POST: async ({ request }) => {
     // Rebuild request to avoid TanStack Start body-parsing conflicts
@@ -19,6 +25,6 @@ export const ServerRoute = createServerFileRoute('/api/uploadthing').methods({
       headers: request.headers,
       body,
     })
-    return handler(plainRequest)
+    return getHandler()(plainRequest)
   },
 })
