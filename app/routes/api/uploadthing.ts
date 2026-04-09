@@ -2,7 +2,10 @@ import { createServerFileRoute } from '@tanstack/react-start/server'
 import { createRouteHandler } from 'uploadthing/server'
 import { uploadRouter } from '~/server/uploadthing'
 
-const handler = createRouteHandler({ router: uploadRouter })
+const handler = createRouteHandler({
+  router: uploadRouter,
+  config: { token: process.env.UPLOADTHING_TOKEN },
+})
 
 export const ServerRoute = createServerFileRoute('/api/uploadthing').methods({
   GET: ({ request }) => {
