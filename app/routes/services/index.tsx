@@ -75,6 +75,8 @@ function ServicesPage() {
                     category={s.category}
                     packages={s.packages}
                     provider={s.provider}
+                    avgRating={(s as any).avgRating}
+                    reviewCount={(s as any).reviewCount}
                   />
                 ))}
               </div>

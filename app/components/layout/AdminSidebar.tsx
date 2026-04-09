@@ -57,6 +57,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     href: '/admin/analytics',
     capability: 'admin:analytics:view',
   },
+  {
+    label: 'Reviews',
+    href: '/admin/reviews',
+    capability: 'admin:reviews:moderate',
+  },
 ]
 
 export function AdminSidebar({

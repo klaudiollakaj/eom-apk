@@ -1,10 +1,10 @@
 // app/server/fns/services.ts
 import { createServerFn } from '@tanstack/react-start'
-import { eq, and, asc, desc, ilike, or, sql } from 'drizzle-orm'
+import { eq, and, asc, desc, ilike, or, sql, avg, count } from 'drizzle-orm'
 import { db } from '~/lib/db'
 import {
   services, servicePackages, serviceImages, serviceCategories,
-  negotiations, users, userLogs,
+  negotiations, users, userLogs, reviews,
 } from '~/lib/schema'
 import { requireAuth } from '~/server/fns/auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -286,7 +286,35 @@ export const browseServices = createServerFn({ method: 'GET' })
     }
 
     // Filter out services from inactive/suspended providers
-    return results.filter((s) => s.provider.isActive)
+    const filtered = results.filter((s) => s.provider.isActive)
+
+    // Attach rating summaries
+    const providerIds = [...new Set(filtered.map((s) => s.providerId))]
+    if (providerIds.length === 0) return filtered.map((s) => ({ ...s, avgRating: null, reviewCount: 0 }))
+
+    const ratingsRaw = await db
+      .select({
+        revieweeId: reviews.revieweeId,
+        avgRating: avg(reviews.rating),
+        reviewCount: count(),
+      })
+      .from(reviews)
+      .where(and(
+        eq(reviews.isVisible, true),
+        sql`${reviews.revieweeId} IN (${sql.join(providerIds.map(id => sql`${id}`), sql`, `)})`,
+      ))
+      .groupBy(reviews.revieweeId)
+
+    const ratingsMap = new Map(ratingsRaw.map((r) => [r.revieweeId, r]))
+
+    return filtered.map((s) => {
+      const r = ratingsMap.get(s.providerId)
+      return {
+        ...s,
+        avgRating: r?.avgRating ? Number(r.avgRating) : null,
+        reviewCount: r?.reviewCount ?? 0,
+      }
+    })
   })
 
 // ── Public: Get service detail ──

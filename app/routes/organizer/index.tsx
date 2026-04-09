@@ -6,6 +6,8 @@ import { EventStatusBadge } from '~/components/events/EventStatusBadge'
 import type { Role } from '~/lib/permissions'
 import { RoleBadge } from '~/components/ui/RoleBadge'
 import { OrganizerAnalyticsSection } from '~/components/analytics/OrganizerAnalyticsSection'
+import { getReviewableDeals } from '~/server/fns/reviews'
+import { ReviewModal } from '~/components/reviews/ReviewModal'
 
 export const Route = createFileRoute('/organizer/')({
   component: OrganizerDashboard,
@@ -17,6 +19,8 @@ function OrganizerDashboard() {
   const user = session.data?.user
   const [events, setEvents] = useState<any[]>([])
   const [statusFilter, setStatusFilter] = useState('')
+  const [reviewableDeals, setReviewableDeals] = useState<any[]>([])
+  const [reviewTarget, setReviewTarget] = useState<any>(null)
 
   async function fetchEvents() {
     const result = await listOrganizerEvents({
@@ -26,6 +30,12 @@ function OrganizerDashboard() {
   }
 
   useEffect(() => { fetchEvents() }, [statusFilter])
+
+  function fetchReviewableDeals() {
+    getReviewableDeals().then(setReviewableDeals)
+  }
+
+  useEffect(() => { fetchReviewableDeals() }, [])
 
   if (!user) return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>
 
@@ -154,6 +164,43 @@ function OrganizerDashboard() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {reviewableDeals.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-4 text-lg font-bold">Pending Reviews ({reviewableDeals.length})</h2>
+          <div className="space-y-2">
+            {reviewableDeals.map((deal: any) => (
+              <div key={deal.id} className="flex items-center justify-between rounded-lg border p-3 dark:border-gray-700">
+                <div>
+                  <p className="text-sm font-medium">{deal.providerName} — {deal.serviceTitle}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {deal.eventTitle} · Deal closed €{Number(deal.agreedPrice).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setReviewTarget(deal)}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+                >
+                  Leave Review
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          eventServiceId={reviewTarget.id}
+          providerName={reviewTarget.providerName}
+          eventTitle={reviewTarget.eventTitle}
+          onClose={() => setReviewTarget(null)}
+          onSubmitted={() => {
+            setReviewTarget(null)
+            fetchReviewableDeals()
+          }}
+        />
       )}
 
       <OrganizerAnalyticsSection />

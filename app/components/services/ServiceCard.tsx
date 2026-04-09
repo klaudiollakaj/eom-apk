@@ -10,9 +10,11 @@ interface ServiceCardProps {
   category?: { name: string } | null
   packages?: { price: string | null; priceIsPublic: boolean }[]
   provider?: { name: string; image: string | null } | null
+  avgRating?: number | null
+  reviewCount?: number
 }
 
-export function ServiceCard({ id, title, bannerImage, city, country, category, packages, provider }: ServiceCardProps) {
+export function ServiceCard({ id, title, bannerImage, city, country, category, packages, provider, avgRating, reviewCount }: ServiceCardProps) {
   const location = [city, country].filter(Boolean).join(', ')
 
   // Find the lowest public price
@@ -43,6 +45,13 @@ export function ServiceCard({ id, title, bannerImage, city, country, category, p
         <h3 className="text-lg font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{title}</h3>
         {location && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{location}</p>}
         {provider && <p className="mt-1 text-xs text-gray-400">by {provider.name}</p>}
+        {reviewCount != null && reviewCount > 0 && (
+          <div className="mt-1 flex items-center gap-1">
+            <span className="text-sm text-amber-400">★</span>
+            <span className="text-xs font-medium">{avgRating ? (Math.round(avgRating * 10) / 10) : '—'}</span>
+            <span className="text-xs text-gray-400">({reviewCount})</span>
+          </div>
+        )}
         <p className="mt-2 text-sm font-medium">
           {startingPrice !== null ? `From \u20AC${startingPrice.toFixed(2)}` : 'Get a Quote'}
         </p>

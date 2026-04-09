@@ -42,6 +42,7 @@ function AdminLayout() {
           'admin:services:manage',
           'admin:negotiations:manage',
           'admin:analytics:view',
+          'admin:reviews:moderate',
         ]
       : (capabilities as string[])
 

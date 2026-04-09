@@ -4,6 +4,9 @@ import { listMyServices } from '~/server/fns/services'
 import { listMyNegotiations } from '~/server/fns/negotiations'
 import { NegotiationStatusBadge } from '~/components/negotiations/NegotiationStatusBadge'
 import { ProviderAnalyticsSection } from '~/components/analytics/ProviderAnalyticsSection'
+import { getMyReviews } from '~/server/fns/reviews'
+import { ReviewsList } from '~/components/reviews/ReviewsList'
+import { StarRating } from '~/components/reviews/StarRating'
 
 export const Route = createFileRoute('/service-provider/')({
   component: ProviderDashboard,
@@ -12,10 +15,12 @@ export const Route = createFileRoute('/service-provider/')({
 function ProviderDashboard() {
   const [services, setServices] = useState<any[]>([])
   const [negotiations, setNegotiations] = useState<any[]>([])
+  const [myReviews, setMyReviews] = useState<any>({ reviews: [], total: 0, avgRating: null })
 
   useEffect(() => {
     listMyServices().then(setServices)
     listMyNegotiations({ data: {} }).then(setNegotiations)
+    getMyReviews({ data: {} }).then(setMyReviews)
   }, [])
 
   const activeNegotiations = negotiations.filter((n) =>
@@ -36,7 +41,7 @@ function ProviderDashboard() {
         </div>
       </div>
 
-      <div className="mb-8 grid grid-cols-3 gap-4">
+      <div className="mb-8 grid grid-cols-4 gap-4">
         <div className="rounded-lg border p-4 dark:border-gray-700">
           <p className="text-2xl font-bold">{services.length}</p>
           <p className="text-sm text-gray-500">Services</p>
@@ -48,6 +53,13 @@ function ProviderDashboard() {
         <div className="rounded-lg border p-4 dark:border-gray-700">
           <p className="text-2xl font-bold">{negotiations.filter((n) => n.status === 'accepted').length}</p>
           <p className="text-sm text-gray-500">Deals Closed</p>
+        </div>
+        <div className="rounded-lg border p-4 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <p className="text-2xl font-bold">{myReviews.avgRating ? (Math.round(myReviews.avgRating * 10) / 10) : '—'}</p>
+            {myReviews.avgRating && <StarRating rating={myReviews.avgRating} size="sm" />}
+          </div>
+          <p className="text-sm text-gray-500">{myReviews.total} Review{myReviews.total !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
@@ -93,6 +105,14 @@ function ProviderDashboard() {
           <NegotiationStatusBadge status={n.status} />
         </Link>
       ))}
+
+      <div className="flex items-center justify-between mb-4 mt-8">
+        <h2 className="text-lg font-bold">Recent Reviews</h2>
+      </div>
+      <ReviewsList
+        reviews={myReviews.reviews.slice(0, 5)}
+        isOwner
+      />
 
       <ProviderAnalyticsSection />
     </div>

@@ -1,10 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getService } from '~/server/fns/services'
 import { requestQuote, sendOffer } from '~/server/fns/negotiations'
 import { listOrganizerEvents } from '~/server/fns/events'
 import { PackageCard } from '~/components/services/PackageCard'
 import { useSession } from '~/lib/auth-client'
+import { getReviewsForService, getProviderRatingSummary } from '~/server/fns/reviews'
+import { RatingSummary } from '~/components/reviews/RatingSummary'
+import { ReviewsList } from '~/components/reviews/ReviewsList'
 
 export const Route = createFileRoute('/services/$serviceId')({
   loader: async ({ params }) => {
@@ -29,6 +32,28 @@ function ServiceDetailPage() {
   const [loading, setLoading] = useState(false)
   const [myEvents, setMyEvents] = useState<any[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
+  const [reviewData, setReviewData] = useState<any>({ reviews: [], total: 0 })
+  const [ratingSummary, setRatingSummary] = useState<any>({ avgRating: null, reviewCount: 0 })
+  const [reviewOffset, setReviewOffset] = useState(0)
+
+  useEffect(() => {
+    if (service?.id) {
+      getReviewsForService({ data: { serviceId: service.id, limit: 5 } }).then(setReviewData)
+    }
+    if (service?.provider?.id) {
+      getProviderRatingSummary({ data: { providerId: service.provider.id } }).then(setRatingSummary)
+    }
+  }, [service?.id])
+
+  async function loadMoreReviews() {
+    const nextOffset = reviewOffset + 5
+    const more = await getReviewsForService({ data: { serviceId: service.id, limit: 5, offset: nextOffset } })
+    setReviewData((prev: any) => ({
+      reviews: [...prev.reviews, ...more.reviews],
+      total: more.total,
+    }))
+    setReviewOffset(nextOffset)
+  }
 
   async function fetchMyEvents() {
     setEventsLoading(true)
@@ -142,6 +167,23 @@ function ServiceDetailPage() {
           </div>
         </>
       )}
+
+      {/* Reviews */}
+      <div className="mt-8">
+        <h2 className="mb-4 text-xl font-bold">Reviews</h2>
+        <RatingSummary
+          avgRating={ratingSummary.avgRating}
+          reviewCount={ratingSummary.reviewCount}
+        />
+        <div className="mt-4">
+          <ReviewsList
+            reviews={reviewData.reviews}
+            total={reviewData.total}
+            hasMore={reviewData.reviews.length < reviewData.total}
+            onLoadMore={loadMoreReviews}
+          />
+        </div>
+      </div>
 
       {showOfferModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

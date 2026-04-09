@@ -322,6 +322,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   capabilities: many(userCapabilities),
   events: many(events),
   services: many(services),
+  reviewsAsReviewer: many(reviews, { relationName: 'reviewer' }),
+  reviewsAsReviewee: many(reviews, { relationName: 'reviewee' }),
 }))
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -425,11 +427,41 @@ export const negotiationRoundsRelations = relations(negotiationRounds, ({ one })
   sender: one(users, { fields: [negotiationRounds.senderId], references: [users.id] }),
 }))
 
-export const eventServicesRelations = relations(eventServices, ({ one }) => ({
+export const eventServicesRelations = relations(eventServices, ({ one, many }) => ({
   event: one(events, { fields: [eventServices.eventId], references: [events.id] }),
   service: one(services, { fields: [eventServices.serviceId], references: [services.id] }),
   negotiation: one(negotiations, { fields: [eventServices.negotiationId], references: [negotiations.id] }),
   provider: one(users, { fields: [eventServices.providerId], references: [users.id] }),
+  reviews: many(reviews),
+}))
+
+// ============================================================
+// Reviews
+// ============================================================
+
+export const reviews = pgTable('reviews', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventServiceId: text('event_service_id').notNull().references(() => eventServices.id, { onDelete: 'cascade' }),
+  reviewerId: text('reviewer_id').notNull().references(() => users.id),
+  revieweeId: text('reviewee_id').notNull().references(() => users.id),
+  rating: integer('rating').notNull(),
+  comment: text('comment'),
+  type: text('type').notNull(),
+  isVisible: boolean('is_visible').notNull().default(true),
+  reportedAt: timestamp('reported_at'),
+  reportReason: text('report_reason'),
+  moderatedAt: timestamp('moderated_at'),
+  moderationAction: text('moderation_action'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  unique().on(table.eventServiceId, table.reviewerId),
+])
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  eventService: one(eventServices, { fields: [reviews.eventServiceId], references: [eventServices.id] }),
+  reviewer: one(users, { fields: [reviews.reviewerId], references: [users.id], relationName: 'reviewer' }),
+  reviewee: one(users, { fields: [reviews.revieweeId], references: [users.id], relationName: 'reviewee' }),
 }))
 
 // ============================================================
