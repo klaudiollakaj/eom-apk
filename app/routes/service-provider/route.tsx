@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
+import { RoleHeader } from '~/components/layout/RoleHeader'
 import { getSession } from '~/server/fns/auth-helpers'
 
 export const Route = createFileRoute('/service-provider')({
@@ -10,5 +11,10 @@ export const Route = createFileRoute('/service-provider')({
 })
 
 function ServiceProviderLayout() {
-  return <Outlet />
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <RoleHeader />
+      <Outlet />
+    </div>
+  )
 }

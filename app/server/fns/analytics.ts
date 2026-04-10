@@ -4,6 +4,7 @@ import { db } from '~/lib/db.server'
 import {
   users, events, services, serviceCategories, categories,
   negotiations, negotiationRounds, eventServices,
+  tickets, ticketTiers,
 } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -250,6 +251,121 @@ export const getOrganizerNegotiationTrend = createServerFn({ method: 'GET' }).ha
         sent: sentMap.get(date) ?? 0,
         accepted: accMap.get(date) ?? 0,
       }))
+  },
+)
+
+// ── Organizer Ticketing ──
+
+export const getOrganizerTicketSalesOverTime = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const session = await requireAuth()
+    const since = daysAgo(30)
+
+    const rows = await db
+      .select({
+        date: sql<string>`DATE(${tickets.createdAt})`.as('date'),
+        count: count(),
+        revenueCents: sql<number>`COALESCE(SUM(${ticketTiers.priceCents}), 0)`.as('revenueCents'),
+      })
+      .from(tickets)
+      .innerJoin(events, eq(tickets.eventId, events.id))
+      .innerJoin(ticketTiers, eq(tickets.tierId, ticketTiers.id))
+      .where(and(
+        eq(events.organizerId, session.user.id),
+        gte(tickets.createdAt, since),
+        sql`${tickets.status} <> 'refunded'`,
+      ))
+      .groupBy(sql`DATE(${tickets.createdAt})`)
+      .orderBy(sql`DATE(${tickets.createdAt})`)
+
+    return rows.map((r) => ({
+      date: r.date,
+      count: Number(r.count),
+      revenue: Number(r.revenueCents) / 100,
+    }))
+  },
+)
+
+export const getOrganizerRevenueByTier = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const session = await requireAuth()
+
+    const rows = await db
+      .select({
+        tierName: ticketTiers.name,
+        sold: count(tickets.id),
+        revenueCents: sql<number>`COALESCE(SUM(${ticketTiers.priceCents}), 0)`.as('revenueCents'),
+      })
+      .from(tickets)
+      .innerJoin(ticketTiers, eq(tickets.tierId, ticketTiers.id))
+      .innerJoin(events, eq(tickets.eventId, events.id))
+      .where(and(
+        eq(events.organizerId, session.user.id),
+        sql`${tickets.status} <> 'refunded'`,
+      ))
+      .groupBy(ticketTiers.name)
+      .orderBy(desc(sql`COALESCE(SUM(${ticketTiers.priceCents}), 0)`))
+
+    return rows.map((r) => ({
+      tierName: r.tierName,
+      sold: Number(r.sold),
+      revenue: Number(r.revenueCents) / 100,
+    }))
+  },
+)
+
+export const getOrganizerTopEventsByRevenue = createServerFn({ method: 'GET' })
+  .validator((input: { limit?: number }) => input)
+  .handler(async ({ data }) => {
+    const session = await requireAuth()
+
+    const rows = await db
+      .select({
+        eventId: events.id,
+        title: events.title,
+        sold: count(tickets.id),
+        revenueCents: sql<number>`COALESCE(SUM(${ticketTiers.priceCents}), 0)`.as('revenueCents'),
+      })
+      .from(tickets)
+      .innerJoin(events, eq(tickets.eventId, events.id))
+      .innerJoin(ticketTiers, eq(tickets.tierId, ticketTiers.id))
+      .where(and(
+        eq(events.organizerId, session.user.id),
+        sql`${tickets.status} <> 'refunded'`,
+      ))
+      .groupBy(events.id, events.title)
+      .orderBy(desc(sql`COALESCE(SUM(${ticketTiers.priceCents}), 0)`))
+      .limit(data.limit ?? 5)
+
+    return rows.map((r) => ({
+      eventId: r.eventId,
+      title: r.title,
+      sold: Number(r.sold),
+      revenue: Number(r.revenueCents) / 100,
+    }))
+  })
+
+export const getOrganizerAttendanceRate = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const session = await requireAuth()
+
+    const [row] = await db
+      .select({
+        total: count(tickets.id),
+        checkedIn: sql<number>`COUNT(*) FILTER (WHERE ${tickets.status} = 'checked_in')`.as('checkedIn'),
+      })
+      .from(tickets)
+      .innerJoin(events, eq(tickets.eventId, events.id))
+      .where(and(
+        eq(events.organizerId, session.user.id),
+        sql`${tickets.status} <> 'refunded'`,
+      ))
+
+    const total = Number(row?.total ?? 0)
+    const checkedIn = Number(row?.checkedIn ?? 0)
+    const rate = total > 0 ? Math.round((checkedIn / total) * 100) : 0
+
+    return { total, checkedIn, rate }
   },
 )
 

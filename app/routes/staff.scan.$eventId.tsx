@@ -4,6 +4,7 @@ import { getSession } from '~/server/fns/auth-helpers'
 import { getEvent } from '~/server/fns/events'
 import { validateTicket, getEventAttendeeList } from '~/server/fns/tickets'
 import { ScannerCamera } from '~/components/tickets/ScannerCamera'
+import { RoleHeader } from '~/components/layout/RoleHeader'
 
 type ScanResult =
   | { kind: 'success'; attendeeName: string; tierName: string; at: Date }
@@ -112,7 +113,9 @@ function ScannerPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <RoleHeader />
+      <div className="mx-auto max-w-3xl px-6 py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Scan Tickets</h1>
@@ -242,6 +245,7 @@ function ScannerPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

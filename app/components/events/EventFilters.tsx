@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { listCategories } from '~/server/fns/categories'
 import { listTags } from '~/server/fns/tags'
+import { getPublicEventCities } from '~/server/fns/events'
 
 export interface FilterState {
   search: string
@@ -8,6 +9,7 @@ export interface FilterState {
   startAfter: string
   startBefore: string
   priceFilter: '' | 'free' | 'paid'
+  city: string
   tagIds: string[]
 }
 
@@ -19,10 +21,12 @@ interface EventFiltersProps {
 export function EventFilters({ filters, onChange }: EventFiltersProps) {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [allTags, setAllTags] = useState<{ id: string; name: string }[]>([])
+  const [cities, setCities] = useState<string[]>([])
 
   useEffect(() => {
     listCategories().then(setCategories)
     listTags({ data: {} }).then(setAllTags)
+    getPublicEventCities().then(setCities)
   }, [])
 
   function update(partial: Partial<FilterState>) {
@@ -62,6 +66,22 @@ export function EventFilters({ filters, onChange }: EventFiltersProps) {
           ))}
         </select>
       </div>
+
+      {cities.length > 0 && (
+        <div>
+          <label className="mb-1 block text-sm font-medium">City</label>
+          <select
+            value={filters.city}
+            onChange={(e) => update({ city: e.target.value })}
+            className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="">All Cities</option>
+            {cities.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-sm font-medium">Date Range</label>
@@ -123,7 +143,7 @@ export function EventFilters({ filters, onChange }: EventFiltersProps) {
 
       <button
         type="button"
-        onClick={() => onChange({ search: '', categoryId: '', startAfter: '', startBefore: '', priceFilter: '', tagIds: [] })}
+        onClick={() => onChange({ search: '', categoryId: '', startAfter: '', startBefore: '', priceFilter: '', city: '', tagIds: [] })}
         className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
       >
         Reset Filters

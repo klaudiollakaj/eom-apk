@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useSession, signOut } from '~/lib/auth-client'
 import { RoleBadge } from '~/components/ui/RoleBadge'
+import { RoleHeader } from '~/components/layout/RoleHeader'
 import { getSession } from '~/server/fns/auth-helpers'
 import type { Role } from '~/lib/permissions'
 
@@ -19,10 +20,18 @@ function ProfilePage() {
   const navigate = useNavigate()
   const user = session.data?.user
 
-  if (!user) return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>
+  if (!user)
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <RoleHeader />
+        <div className="flex items-center justify-center p-12"><p>Loading...</p></div>
+      </div>
+    )
 
   return (
-    <div className="mx-auto max-w-2xl p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <RoleHeader />
+      <div className="mx-auto max-w-2xl p-8">
       <h1 className="mb-6 text-2xl font-bold">Profile</h1>
       <div className="space-y-4 rounded-lg border bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
         <div>
@@ -51,6 +60,7 @@ function ProfilePage() {
         >
           Logout
         </button>
+      </div>
       </div>
     </div>
   )

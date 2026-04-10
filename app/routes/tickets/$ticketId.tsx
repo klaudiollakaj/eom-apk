@@ -5,6 +5,7 @@ import { getTicket } from '~/server/fns/tickets'
 import { QrCodeDisplay } from '~/components/tickets/QrCodeDisplay'
 import { TransferModal } from '~/components/tickets/TransferModal'
 import { RefundModal } from '~/components/tickets/RefundModal'
+import { RoleHeader } from '~/components/layout/RoleHeader'
 
 export const Route = createFileRoute('/tickets/$ticketId')({
   beforeLoad: async () => {
@@ -36,7 +37,9 @@ function TicketDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <RoleHeader />
+      <div className="mx-auto max-w-2xl px-6 py-10">
       <Link
         to="/tickets"
         className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
@@ -149,6 +152,7 @@ function TicketDetailPage() {
           onSuccess={refresh}
         />
       )}
+      </div>
     </div>
   )
 }

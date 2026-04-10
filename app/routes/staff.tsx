@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { getMyCapabilities } from '~/server/fns/capabilities'
 import { getSession } from '~/server/fns/auth-helpers'
 import { RoleBadge } from '~/components/ui/RoleBadge'
+import { RoleHeader } from '~/components/layout/RoleHeader'
 import type { Role } from '~/lib/permissions'
 
 export const Route = createFileRoute('/staff')({
@@ -28,7 +29,13 @@ function StaffPage() {
     })
   }, [])
 
-  if (!user) return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>
+  if (!user)
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <RoleHeader />
+        <div className="flex items-center justify-center p-12"><p>Loading...</p></div>
+      </div>
+    )
 
   const hasPageEdit = capabilities.some((c) => c.startsWith('pages:edit:'))
   const hasEconomics = capabilities.includes('economics:view')
@@ -36,7 +43,9 @@ function StaffPage() {
   const hasAny = hasPageEdit || hasEconomics || hasStats
 
   return (
-    <div className="mx-auto max-w-4xl p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <RoleHeader />
+      <div className="mx-auto max-w-4xl p-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
@@ -85,6 +94,7 @@ function StaffPage() {
             </p>
           </div>
         )}
+      </div>
       </div>
     </div>
   )

@@ -56,3 +56,28 @@ export function creatableRoles(actorRole: Role): Role[] {
   }
   return []
 }
+
+/** The role-specific dashboard path for a given role. */
+export function getDashboardPath(role: Role | null | undefined): string {
+  switch (role) {
+    case 'admin':
+    case 'superadmin':
+      return '/admin'
+    case 'organizer':
+      return '/organizer'
+    case 'service_provider':
+      return '/service-provider'
+    case 'sponsor':
+      return '/sponsor'
+    case 'distributor':
+      return '/distributor'
+    case 'negotiator':
+      return '/negotiator'
+    case 'marketing_agency':
+      return '/marketing'
+    case 'staff':
+      return '/staff'
+    default:
+      return '/dashboard'
+  }
+}

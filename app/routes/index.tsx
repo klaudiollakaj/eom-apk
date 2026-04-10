@@ -3,27 +3,32 @@ import { Header } from '~/components/layout/Header'
 import { Footer } from '~/components/layout/Footer'
 import { EventCard } from '~/components/events/EventCard'
 import { getNavLinks } from '~/server/fns/navigation'
-import { getFeaturedEvents, getLatestEvents } from '~/server/fns/events'
+import {
+  getFeaturedEvents, getLatestEvents, getStartingSoonEvents, getTrendingEventIds,
+} from '~/server/fns/events'
 
 export const Route = createFileRoute('/')({
   loader: async () => {
     try {
-      const [headerLinks, footerLinks, featured, latest] = await Promise.all([
+      const [headerLinks, footerLinks, featured, latest, startingSoon, trendingIds] = await Promise.all([
         getNavLinks({ data: { position: 'header' } }),
         getNavLinks({ data: { position: 'footer' } }),
         getFeaturedEvents(),
         getLatestEvents(),
+        getStartingSoonEvents(),
+        getTrendingEventIds({ data: { limit: 10 } }),
       ])
-      return { headerLinks, footerLinks, featured, latest }
+      return { headerLinks, footerLinks, featured, latest, startingSoon, trendingIds }
     } catch {
-      return { headerLinks: [], footerLinks: [], featured: [], latest: [] }
+      return { headerLinks: [], footerLinks: [], featured: [], latest: [], startingSoon: [], trendingIds: [] }
     }
   },
   component: Home,
 })
 
 function Home() {
-  const { headerLinks, footerLinks, featured, latest } = Route.useLoaderData()
+  const { headerLinks, footerLinks, featured, latest, startingSoon, trendingIds } = Route.useLoaderData()
+  const trendingSet = new Set(trendingIds)
 
   return (
     <div className="min-h-screen">
@@ -60,7 +65,37 @@ function Home() {
                   country={event.country}
                   price={event.price}
                   category={event.category}
+                  isFeatured
+                  isTrending={trendingSet.has(event.id)}
                 />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {startingSoon.length > 0 && (
+        <section className="bg-gradient-to-b from-transparent to-gray-100 px-6 py-16 dark:to-gray-800/50">
+          <div className="mx-auto max-w-7xl">
+            <h2 className="text-center text-3xl font-bold">Starting Soon</h2>
+            <p className="mt-2 text-center text-gray-600 dark:text-gray-400">
+              Don't miss these events happening in the next 7 days
+            </p>
+            <div className="mt-10 flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory">
+              {startingSoon.map((event: any) => (
+                <div key={event.id} className="w-72 shrink-0 snap-start">
+                  <EventCard
+                    id={event.id}
+                    title={event.title}
+                    bannerImage={event.bannerImage}
+                    startDate={event.startDate}
+                    city={event.city}
+                    country={event.country}
+                    price={event.price}
+                    category={event.category}
+                    isTrending={trendingSet.has(event.id)}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -86,6 +121,7 @@ function Home() {
                   country={event.country}
                   price={event.price}
                   category={event.category}
+                  isTrending={trendingSet.has(event.id)}
                 />
               ))
             ) : (

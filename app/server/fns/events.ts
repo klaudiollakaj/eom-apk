@@ -6,6 +6,7 @@ import { db } from '~/lib/db.server'
 import {
   events, eventImages, eventTags, tags, categories, users, userLogs,
   publishingPermissions, navigationLinks, negotiations, negotiationRounds, eventServices,
+  tickets,
 } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -34,6 +35,7 @@ export const listPublicEvents = createServerFn({ method: 'GET' })
     startBefore?: string
     priceFilter?: 'free' | 'paid'
     search?: string
+    city?: string
     tagIds?: string[]
     offset?: number
     limit?: number
@@ -53,7 +55,11 @@ export const listPublicEvents = createServerFn({ method: 'GET' })
     if (data.startBefore) conditions.push(lte(events.startDate, new Date(data.startBefore)))
     if (data.priceFilter === 'free') conditions.push(sql`(${events.price} IS NULL OR ${events.price} = 0)`)
     if (data.priceFilter === 'paid') conditions.push(sql`(${events.price} IS NOT NULL AND ${events.price} > 0)`)
-    if (data.search) conditions.push(ilike(events.title, `%${data.search}%`))
+    if (data.city) conditions.push(eq(events.city, data.city))
+    if (data.search) {
+      const term = `%${data.search}%`
+      conditions.push(or(ilike(events.title, term), ilike(events.description, term)))
+    }
 
     const where = and(...conditions)
 
@@ -117,6 +123,74 @@ export const getLatestEvents = createServerFn({ method: 'GET' }).handler(
         organizer: { columns: { id: true, name: true, image: true } },
       },
     })
+  },
+)
+
+export const getStartingSoonEvents = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const now = new Date()
+    const soon = new Date()
+    soon.setDate(soon.getDate() + 7)
+
+    return db.query.events.findMany({
+      where: and(
+        eq(events.status, 'published'),
+        eq(events.visibility, 'public'),
+        inArray(events.organizerId, activeOrganizerIds()),
+        gte(events.startDate, now),
+        lte(events.startDate, soon),
+      ),
+      orderBy: [asc(events.startDate)],
+      limit: 8,
+      with: {
+        category: true,
+        organizer: { columns: { id: true, name: true, image: true } },
+      },
+    })
+  },
+)
+
+export const getTrendingEventIds = createServerFn({ method: 'GET' })
+  .validator((input: { limit?: number }) => input)
+  .handler(async ({ data }) => {
+    const limit = data.limit ?? 10
+    // Count valid or checked-in tickets created in the last 14 days per event
+    const since = new Date()
+    since.setDate(since.getDate() - 14)
+
+    const rows = await db
+      .select({
+        eventId: tickets.eventId,
+        sold: count(tickets.id),
+      })
+      .from(tickets)
+      .innerJoin(events, eq(tickets.eventId, events.id))
+      .where(and(
+        eq(events.status, 'published'),
+        eq(events.visibility, 'public'),
+        gte(tickets.createdAt, since),
+        sql`${tickets.status} <> 'refunded'`,
+      ))
+      .groupBy(tickets.eventId)
+      .orderBy(desc(count(tickets.id)))
+      .limit(limit)
+
+    return rows.map((r) => r.eventId)
+  })
+
+export const getPublicEventCities = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const rows = await db
+      .selectDistinct({ city: events.city })
+      .from(events)
+      .where(and(
+        eq(events.status, 'published'),
+        eq(events.visibility, 'public'),
+        sql`${events.city} IS NOT NULL AND ${events.city} <> ''`,
+      ))
+      .orderBy(asc(events.city))
+
+    return rows.map((r) => r.city).filter((c): c is string => !!c)
   },
 )
 

@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { AdminSidebar } from '~/components/layout/AdminSidebar'
+import { RoleHeader } from '~/components/layout/RoleHeader'
 import { getMyCapabilities } from '~/server/fns/capabilities'
 import { getSession } from '~/server/fns/auth-helpers'
 
@@ -50,11 +51,14 @@ function AdminLayout() {
       : (capabilities as string[])
 
   return (
-    <div className="flex min-h-screen">
-      <AdminSidebar capabilities={capList} />
-      <main className="flex-1 p-6">
-        <Outlet />
-      </main>
+    <div className="flex min-h-screen flex-col">
+      <RoleHeader />
+      <div className="flex flex-1">
+        <AdminSidebar capabilities={capList} />
+        <main className="flex-1 p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

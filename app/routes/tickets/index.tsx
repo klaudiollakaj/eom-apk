@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { getSession } from '~/server/fns/auth-helpers'
 import { getMyTickets } from '~/server/fns/tickets'
 import { TicketCard } from '~/components/tickets/TicketCard'
+import { RoleHeader } from '~/components/layout/RoleHeader'
 
 export const Route = createFileRoute('/tickets/')({
   beforeLoad: async () => {
@@ -19,7 +20,9 @@ function MyTicketsPage() {
   const { upcoming, past } = Route.useLoaderData()
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <RoleHeader />
+      <div className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-bold">My Tickets</h1>
 
       {upcoming.length === 0 && past.length === 0 ? (
@@ -53,6 +56,7 @@ function MyTicketsPage() {
           )}
         </>
       )}
+      </div>
     </div>
   )
 }
