@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/db.server'
-import { reviews, eventServices, events, users } from '~/lib/schema'
+import { reviews, eventReviews, eventServices, events, users, tickets } from '~/lib/schema'
 import { eq, and, desc, isNotNull, isNull, sql, avg, count } from 'drizzle-orm'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -334,6 +334,173 @@ export const moderateReview = createServerFn({ method: 'POST' })
     }
 
     return { success: true }
+  })
+
+// ══════════════════════════════════════════════════
+// Attendee → Event Reviews (gated by checked-in ticket)
+// ══════════════════════════════════════════════════
+
+async function userHasCheckedInTicket(userId: string, eventId: string): Promise<boolean> {
+  const ticket = await db.query.tickets.findFirst({
+    where: and(
+      eq(tickets.eventId, eventId),
+      eq(tickets.ownerId, userId),
+      eq(tickets.status, 'checked_in'),
+    ),
+    columns: { id: true },
+  })
+  return !!ticket
+}
+
+export const canReviewEvent = createServerFn({ method: 'GET' })
+  .validator((input: { eventId: string }) => input)
+  .handler(async ({ data }) => {
+    let session
+    try {
+      session = await requireAuth()
+    } catch {
+      return { canReview: false, reason: 'NOT_AUTHENTICATED' as const, existingReviewId: null }
+    }
+
+    const hasTicket = await userHasCheckedInTicket(session.user.id, data.eventId)
+    if (!hasTicket) {
+      return { canReview: false, reason: 'NO_CHECKED_IN_TICKET' as const, existingReviewId: null }
+    }
+
+    const existing = await db.query.eventReviews.findFirst({
+      where: and(
+        eq(eventReviews.eventId, data.eventId),
+        eq(eventReviews.userId, session.user.id),
+      ),
+      columns: { id: true },
+    })
+
+    if (existing) {
+      return { canReview: false, reason: 'ALREADY_REVIEWED' as const, existingReviewId: existing.id }
+    }
+
+    return { canReview: true, reason: null, existingReviewId: null }
+  })
+
+export const submitEventReview = createServerFn({ method: 'POST' })
+  .validator((input: { eventId: string; rating: number; comment?: string }) => input)
+  .handler(async ({ data }) => {
+    const session = await requireAuth()
+    if (session.user.isSuspended) throw new Error('ACCOUNT_SUSPENDED')
+
+    if (data.rating < 1 || data.rating > 5 || !Number.isInteger(data.rating)) {
+      throw new Error('INVALID_RATING: Must be integer 1-5')
+    }
+
+    const hasTicket = await userHasCheckedInTicket(session.user.id, data.eventId)
+    if (!hasTicket) {
+      throw new Error('FORBIDDEN: Only checked-in attendees can review this event')
+    }
+
+    const existing = await db.query.eventReviews.findFirst({
+      where: and(
+        eq(eventReviews.eventId, data.eventId),
+        eq(eventReviews.userId, session.user.id),
+      ),
+    })
+    if (existing) throw new Error('DUPLICATE: You have already reviewed this event')
+
+    const [review] = await db.insert(eventReviews).values({
+      eventId: data.eventId,
+      userId: session.user.id,
+      rating: data.rating,
+      comment: data.comment || null,
+    }).returning()
+
+    return review
+  })
+
+export const updateEventReview = createServerFn({ method: 'POST' })
+  .validator((input: { reviewId: string; rating: number; comment?: string }) => input)
+  .handler(async ({ data }) => {
+    const session = await requireAuth()
+    if (session.user.isSuspended) throw new Error('ACCOUNT_SUSPENDED')
+
+    if (data.rating < 1 || data.rating > 5 || !Number.isInteger(data.rating)) {
+      throw new Error('INVALID_RATING: Must be integer 1-5')
+    }
+
+    const existing = await db.query.eventReviews.findFirst({
+      where: eq(eventReviews.id, data.reviewId),
+    })
+    if (!existing) throw new Error('NOT_FOUND')
+    if (existing.userId !== session.user.id) throw new Error('FORBIDDEN')
+
+    const [updated] = await db
+      .update(eventReviews)
+      .set({
+        rating: data.rating,
+        comment: data.comment || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(eventReviews.id, data.reviewId))
+      .returning()
+
+    return updated
+  })
+
+export const getEventReviews = createServerFn({ method: 'GET' })
+  .validator((input: { eventId: string; limit?: number; offset?: number }) => input)
+  .handler(async ({ data }) => {
+    const limit = data.limit ?? 10
+    const offset = data.offset ?? 0
+
+    const results = await db.query.eventReviews.findMany({
+      where: and(
+        eq(eventReviews.eventId, data.eventId),
+        eq(eventReviews.isVisible, true),
+      ),
+      with: {
+        user: { columns: { id: true, name: true, image: true } },
+      },
+      orderBy: [desc(eventReviews.createdAt)],
+      limit,
+      offset,
+    })
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(eventReviews)
+      .where(and(
+        eq(eventReviews.eventId, data.eventId),
+        eq(eventReviews.isVisible, true),
+      ))
+
+    return {
+      reviews: results.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        user: r.user,
+      })),
+      total: totalResult?.count ?? 0,
+    }
+  })
+
+export const getEventRatingSummary = createServerFn({ method: 'GET' })
+  .validator((input: { eventId: string }) => input)
+  .handler(async ({ data }) => {
+    const [result] = await db
+      .select({
+        avgRating: avg(eventReviews.rating),
+        reviewCount: count(),
+      })
+      .from(eventReviews)
+      .where(and(
+        eq(eventReviews.eventId, data.eventId),
+        eq(eventReviews.isVisible, true),
+      ))
+
+    return {
+      avgRating: result?.avgRating ? Number(result.avgRating) : null,
+      reviewCount: result?.reviewCount ?? 0,
+    }
   })
 
 // ── Get reviewable deals (organizer) ────────────────────────

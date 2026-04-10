@@ -3,6 +3,7 @@ import { Header } from '~/components/layout/Header'
 import { Footer } from '~/components/layout/Footer'
 import { EventServicesList } from '~/components/events/EventServicesList'
 import { TierCard } from '~/components/tickets/TierCard'
+import { EventReviewsSection } from '~/components/reviews/EventReviewsSection'
 import { getNavLinks } from '~/server/fns/navigation'
 import { getEvent } from '~/server/fns/events'
 import { listEventTiers } from '~/server/fns/tickets'
@@ -169,6 +170,8 @@ function EventDetailPage() {
         {event.eventServices && event.eventServices.length > 0 && (
           <EventServicesList services={event.eventServices} />
         )}
+
+        <EventReviewsSection eventId={event.id} />
       </div>
 
       <Footer links={footerLinks} />

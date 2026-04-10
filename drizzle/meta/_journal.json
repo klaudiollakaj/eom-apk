@@ -50,6 +50,13 @@
       "when": 1775816814576,
       "tag": "0006_flowery_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775845908739,
+      "tag": "0007_salty_stardust",
+      "breakpoints": true
     }
   ]
 }

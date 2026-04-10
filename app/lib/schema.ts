@@ -381,6 +381,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   eventServices: many(eventServices),
   ticketTiers: many(ticketTiers),
   tickets: many(tickets),
+  eventReviews: many(eventReviews),
 }))
 
 export const eventImagesRelations = relations(eventImages, ({ one }) => ({
@@ -469,6 +470,31 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   eventService: one(eventServices, { fields: [reviews.eventServiceId], references: [eventServices.id] }),
   reviewer: one(users, { fields: [reviews.reviewerId], references: [users.id], relationName: 'reviewer' }),
   reviewee: one(users, { fields: [reviews.revieweeId], references: [users.id], relationName: 'reviewee' }),
+}))
+
+// ── Attendee → Event reviews (gated by checked-in ticket) ──
+
+export const eventReviews = pgTable('event_reviews', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  rating: integer('rating').notNull(),
+  comment: text('comment'),
+  isVisible: boolean('is_visible').notNull().default(true),
+  reportedAt: timestamp('reported_at'),
+  reportReason: text('report_reason'),
+  moderatedAt: timestamp('moderated_at'),
+  moderationAction: text('moderation_action'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  unique().on(table.eventId, table.userId),
+  index('event_reviews_event_idx').on(table.eventId),
+])
+
+export const eventReviewsRelations = relations(eventReviews, ({ one }) => ({
+  event: one(events, { fields: [eventReviews.eventId], references: [events.id] }),
+  user: one(users, { fields: [eventReviews.userId], references: [users.id] }),
 }))
 
 // ============================================================
