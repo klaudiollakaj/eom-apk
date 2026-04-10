@@ -105,6 +105,13 @@ function TierManagementPage() {
             View Sales
           </Link>
           <Link
+            to="/organizer/events/$eventId/promo-codes"
+            params={{ eventId: event.id }}
+            className="rounded border px-3 py-2 text-sm dark:border-gray-700"
+          >
+            Promo Codes
+          </Link>
+          <Link
             to="/organizer/events/$eventId/edit"
             params={{ eventId: event.id }}
             className="rounded border px-3 py-2 text-sm dark:border-gray-700"

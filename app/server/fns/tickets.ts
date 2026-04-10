@@ -10,11 +10,13 @@ import {
   refunds,
   users,
   userLogs,
+  promoCodes,
 } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { isAdmin, type Role } from '~/lib/permissions'
 import { hasCapability, requireCapability } from '~/lib/permissions.server'
 import { signTicketToken, verifyTicketToken } from '~/lib/ticket-qr.server'
+import { sendEmail } from '~/lib/email'
 
 async function requireEventOwnership(eventId: string, userId: string, role: Role) {
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
@@ -290,6 +292,7 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
     (input: {
       eventId: string
       items: { tierId: string; quantity: number }[]
+      promoCode?: string
       payment?: {
         cardNumber: string
         expiry: string
@@ -380,7 +383,44 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
         plan.push({ tier, quantity: item.quantity })
       }
 
-      const totalCents = subtotalCents
+      // Promo code validation + discount
+      let discountCents = 0
+      let appliedPromoId: string | null = null
+
+      if (data.promoCode && data.promoCode.trim()) {
+        const codeStr = data.promoCode.trim().toUpperCase()
+
+        // Lock the promo row so concurrent uses can't exceed maxUses
+        await tx.execute(
+          sql`SELECT id FROM promo_codes WHERE event_id = ${data.eventId} AND UPPER(code) = ${codeStr} FOR UPDATE`,
+        )
+
+        const promo = await tx.query.promoCodes.findFirst({
+          where: and(
+            eq(promoCodes.eventId, data.eventId),
+            sql`UPPER(${promoCodes.code}) = ${codeStr}`,
+          ),
+        })
+
+        if (!promo) throw new Error('PROMO_INVALID')
+        if (!promo.isActive) throw new Error('PROMO_INACTIVE')
+        if (promo.expiresAt && promo.expiresAt.getTime() < now.getTime()) {
+          throw new Error('PROMO_EXPIRED')
+        }
+        if (promo.maxUses !== null && promo.usedCount >= promo.maxUses) {
+          throw new Error('PROMO_EXHAUSTED')
+        }
+
+        if (promo.discountType === 'percent') {
+          discountCents = Math.floor((subtotalCents * promo.discountValue) / 100)
+        } else if (promo.discountType === 'fixed') {
+          discountCents = promo.discountValue
+        }
+        if (discountCents > subtotalCents) discountCents = subtotalCents
+        appliedPromoId = promo.id
+      }
+
+      const totalCents = subtotalCents - discountCents
       const isFree = totalCents === 0
 
       if (!isFree) {
@@ -398,6 +438,8 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
           userId,
           eventId: data.eventId,
           subtotalCents,
+          discountCents,
+          promoCodeId: appliedPromoId,
           totalCents,
           status: 'paid',
           paymentMethod: 'mock',
@@ -405,6 +447,13 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
           paidAt: now,
         })
         .returning()
+
+      if (appliedPromoId) {
+        await tx
+          .update(promoCodes)
+          .set({ usedCount: sql`${promoCodes.usedCount} + 1`, updatedAt: now })
+          .where(eq(promoCodes.id, appliedPromoId))
+      }
 
       const createdTicketIds: string[] = []
 
@@ -435,7 +484,15 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
           .where(eq(ticketTiers.id, tier.id))
       }
 
-      return { orderId: order.id, orderNumber, ticketIds: createdTicketIds }
+      return {
+        orderId: order.id,
+        orderNumber,
+        ticketIds: createdTicketIds,
+        eventTitle: event.title,
+        eventStartDate: event.startDate,
+        totalCents,
+        discountCents,
+      }
     })
 
     await db.insert(userLogs).values({
@@ -448,7 +505,44 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
       },
     })
 
-    return result
+    // Purchase confirmation email (fire-and-forget)
+    {
+      const dateStr = result.eventStartDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+      const ticketsUrl = `${process.env.APP_URL || ''}/tickets`
+      const lines = [
+        `Hi ${session.user.name || 'there'},`,
+        '',
+        `Your order for "${result.eventTitle}" on ${dateStr} has been confirmed.`,
+        '',
+        `Order number: ${result.orderNumber}`,
+        `Tickets: ${result.ticketIds.length}`,
+        result.discountCents > 0
+          ? `Discount applied: -$${(result.discountCents / 100).toFixed(2)}`
+          : null,
+        `Total: ${result.totalCents === 0 ? 'Free' : `$${(result.totalCents / 100).toFixed(2)}`}`,
+        '',
+        `View your tickets:`,
+        ticketsUrl,
+        '',
+        '— EOM',
+      ].filter(Boolean)
+      sendEmail({
+        to: session.user.email,
+        subject: `Order confirmed — ${result.eventTitle}`,
+        text: lines.join('\n'),
+      }).catch((err) => console.error('[purchase email]', err))
+    }
+
+    return {
+      orderId: result.orderId,
+      orderNumber: result.orderNumber,
+      ticketIds: result.ticketIds,
+    }
   })
 
 // ==================== ATTENDEE QUERIES ====================
@@ -530,6 +624,9 @@ export const transferTicket = createServerFn({ method: 'POST' })
     if (!recipient) throw new Error('USER_NOT_FOUND')
     if (recipient.id === session.user.id) throw new Error('CANNOT_TRANSFER_TO_SELF')
 
+    let capturedEvent: { id: string; title: string; startDate: Date } | null = null
+    let capturedTierName = ''
+
     const result = await db.transaction(async (tx) => {
       const ticket = await tx.query.tickets.findFirst({
         where: eq(tickets.id, data.ticketId),
@@ -541,6 +638,13 @@ export const transferTicket = createServerFn({ method: 'POST' })
       if (ticket.event.startDate.getTime() <= Date.now()) {
         throw new Error('EVENT_STARTED')
       }
+
+      capturedEvent = {
+        id: ticket.event.id,
+        title: ticket.event.title,
+        startDate: ticket.event.startDate,
+      }
+      capturedTierName = ticket.tier.name
 
       // Check recipient's cap for tier
       const [existing] = await tx
@@ -590,6 +694,43 @@ export const transferTicket = createServerFn({ method: 'POST' })
       },
     })
 
+    // Fire-and-forget email notifications — don't block the transfer if SMTP is down
+    if (capturedEvent) {
+      const ev = capturedEvent as { id: string; title: string; startDate: Date }
+      const dateStr = ev.startDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+      const senderName = session.user.name || session.user.email
+      const ticketUrl = `${process.env.APP_URL || ''}/tickets/${data.ticketId}`
+
+      // Recipient: you received a ticket
+      sendEmail({
+        to: recipient.email,
+        subject: `You received a ticket for ${ev.title}`,
+        text:
+          `Hi ${recipient.name || 'there'},\n\n` +
+          `${senderName} has transferred you a ticket for "${ev.title}" on ${dateStr}.\n` +
+          `Ticket type: ${capturedTierName}\n` +
+          (data.note?.trim() ? `\nMessage from ${senderName}:\n"${data.note.trim()}"\n` : '') +
+          `\nView your ticket:\n${ticketUrl}\n\n` +
+          `— EOM`,
+      }).catch((err) => console.error('[transfer email → recipient]', err))
+
+      // Sender: confirmation
+      sendEmail({
+        to: session.user.email,
+        subject: `Ticket transferred to ${recipient.email}`,
+        text:
+          `Hi ${senderName},\n\n` +
+          `Your ticket for "${ev.title}" (${capturedTierName}) has been transferred to ${recipient.email}.\n` +
+          `You no longer have access to this ticket.\n\n` +
+          `— EOM`,
+      }).catch((err) => console.error('[transfer email → sender]', err))
+    }
+
     return result
   })
 
@@ -636,6 +777,11 @@ async function performRefund(
       .where(eq(tickets.id, ticket.id))
       .returning()
 
+    const owner = await tx.query.users.findFirst({
+      where: eq(users.id, ticket.ownerId),
+      columns: { email: true, name: true },
+    })
+
     await tx
       .update(ticketTiers)
       .set({
@@ -667,8 +813,39 @@ async function performRefund(
       })
       .where(eq(orders.id, ticket.orderId))
 
-    return updated
+    return {
+      ticket: updated,
+      notify: owner
+        ? {
+            email: owner.email,
+            name: owner.name,
+            eventTitle: ticket.event.title,
+            tierName: ticket.tier.name,
+            amountCents: ticket.tier.priceCents,
+          }
+        : null,
+    }
   })
+}
+
+function sendRefundEmail(notify: {
+  email: string
+  name: string
+  eventTitle: string
+  tierName: string
+  amountCents: number
+}) {
+  const amountStr =
+    notify.amountCents > 0 ? `$${(notify.amountCents / 100).toFixed(2)}` : 'Free'
+  sendEmail({
+    to: notify.email,
+    subject: `Refund processed — ${notify.eventTitle}`,
+    text:
+      `Hi ${notify.name || 'there'},\n\n` +
+      `Your ticket for "${notify.eventTitle}" (${notify.tierName}) has been refunded.\n` +
+      `Amount: ${amountStr}\n\n` +
+      `— EOM`,
+  }).catch((err) => console.error('[refund email]', err))
 }
 
 export const refundTicket = createServerFn({ method: 'POST' })
@@ -688,7 +865,9 @@ export const refundTicket = createServerFn({ method: 'POST' })
       details: { ticketId: data.ticketId },
     })
 
-    return result
+    if (result.notify) sendRefundEmail(result.notify)
+
+    return result.ticket
   })
 
 export const refundOrder = createServerFn({ method: 'POST' })
@@ -707,9 +886,30 @@ export const refundOrder = createServerFn({ method: 'POST' })
     if (refundable.length === 0) throw new Error('NOT_REFUNDABLE')
 
     const refunded: string[] = []
+    let totalRefundCents = 0
+    let eventTitle: string | null = null
+    let ownerEmail: string | null = null
+    let ownerName: string = ''
     for (const t of refundable) {
-      await performRefund(t.id, session.user.id, data.reason, false)
+      const res = await performRefund(t.id, session.user.id, data.reason, false)
       refunded.push(t.id)
+      if (res.notify) {
+        totalRefundCents += res.notify.amountCents
+        eventTitle = res.notify.eventTitle
+        ownerEmail = res.notify.email
+        ownerName = res.notify.name
+      }
+    }
+
+    // One consolidated email for the whole order instead of one per ticket
+    if (ownerEmail && eventTitle) {
+      sendRefundEmail({
+        email: ownerEmail,
+        name: ownerName,
+        eventTitle,
+        tierName: `${refunded.length} ticket${refunded.length === 1 ? '' : 's'}`,
+        amountCents: totalRefundCents,
+      })
     }
 
     await db.insert(userLogs).values({
@@ -935,7 +1135,9 @@ export const adminForceRefund = createServerFn({ method: 'POST' })
       details: { ticketId: data.ticketId, reason: data.reason },
     })
 
-    return result
+    if (result.notify) sendRefundEmail(result.notify)
+
+    return result.ticket
   })
 
 export const getOrganizerEventSales = createServerFn({ method: 'GET' })

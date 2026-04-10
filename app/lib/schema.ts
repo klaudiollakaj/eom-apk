@@ -574,12 +574,31 @@ export const ticketTiers = pgTable('ticket_tiers', {
   index('ticket_tiers_event_idx').on(table.eventId),
 ])
 
+export const promoCodes = pgTable('promo_codes', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  code: text('code').notNull(),
+  discountType: text('discount_type').notNull(), // 'percent' | 'fixed'
+  discountValue: integer('discount_value').notNull(), // percent 1-100 or cents
+  maxUses: integer('max_uses'),
+  usedCount: integer('used_count').notNull().default(0),
+  expiresAt: timestamp('expires_at'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  unique().on(table.eventId, table.code),
+  index('promo_codes_event_idx').on(table.eventId),
+])
+
 export const orders = pgTable('orders', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   orderNumber: text('order_number').notNull().unique(),
   userId: text('user_id').notNull().references(() => users.id),
   eventId: text('event_id').notNull().references(() => events.id),
   subtotalCents: integer('subtotal_cents').notNull(),
+  discountCents: integer('discount_cents').notNull().default(0),
+  promoCodeId: text('promo_code_id').references(() => promoCodes.id),
   totalCents: integer('total_cents').notNull(),
   status: text('status').notNull().default('pending'),
   paymentMethod: text('payment_method').notNull().default('mock'),
@@ -642,8 +661,14 @@ export const ticketTiersRelations = relations(ticketTiers, ({ one, many }) => ({
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   user: one(users, { fields: [orders.userId], references: [users.id] }),
   event: one(events, { fields: [orders.eventId], references: [events.id] }),
+  promoCode: one(promoCodes, { fields: [orders.promoCodeId], references: [promoCodes.id] }),
   tickets: many(tickets),
   refunds: many(refunds),
+}))
+
+export const promoCodesRelations = relations(promoCodes, ({ one, many }) => ({
+  event: one(events, { fields: [promoCodes.eventId], references: [events.id] }),
+  orders: many(orders),
 }))
 
 export const ticketsRelations = relations(tickets, ({ one, many }) => ({

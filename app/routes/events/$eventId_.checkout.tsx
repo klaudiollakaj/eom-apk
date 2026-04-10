@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { z } from 'zod'
 import { getEvent } from '~/server/fns/events'
 import { listEventTiers, purchaseTickets } from '~/server/fns/tickets'
+import { previewPromoCode } from '~/server/fns/promo-codes'
 import { getSession } from '~/server/fns/auth-helpers'
 import { CheckoutSummary } from '~/components/tickets/CheckoutSummary'
 import { MockPaymentForm, type MockPaymentValues } from '~/components/tickets/MockPaymentForm'
@@ -73,6 +74,16 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [promoInput, setPromoInput] = useState('')
+  const [promoApplying, setPromoApplying] = useState(false)
+  const [promoError, setPromoError] = useState<string | null>(null)
+  const [applied, setApplied] = useState<{
+    code: string
+    discountType: 'percent' | 'fixed'
+    discountValue: number
+    discountCents: number
+  } | null>(null)
+
   const lines = useMemo(
     () =>
       tiers.map((t: any) => ({
@@ -84,7 +95,7 @@ function CheckoutPage() {
     [tiers, quantities],
   )
 
-  const totalCents = useMemo(
+  const subtotalCents = useMemo(
     () => lines.reduce((s, l) => s + l.priceCents * l.quantity, 0),
     [lines],
   )
@@ -92,7 +103,53 @@ function CheckoutPage() {
     () => lines.reduce((s, l) => s + l.quantity, 0),
     [lines],
   )
+
+  // Recompute discount against current subtotal for percent codes;
+  // clamp fixed codes to subtotal.
+  const effectiveDiscountCents = useMemo(() => {
+    if (!applied) return 0
+    let d = 0
+    if (applied.discountType === 'percent') {
+      d = Math.floor((subtotalCents * applied.discountValue) / 100)
+    } else {
+      d = applied.discountValue
+    }
+    return Math.min(d, subtotalCents)
+  }, [applied, subtotalCents])
+
+  const totalCents = Math.max(0, subtotalCents - effectiveDiscountCents)
   const isFree = totalCents === 0
+
+  async function handleApplyPromo() {
+    setPromoError(null)
+    if (!promoInput.trim()) return
+    if (subtotalCents === 0) {
+      setPromoError('Select tickets before applying a promo code.')
+      return
+    }
+    setPromoApplying(true)
+    try {
+      const result = await previewPromoCode({
+        data: {
+          eventId: event.id,
+          code: promoInput.trim(),
+          subtotalCents,
+        },
+      })
+      setApplied(result)
+    } catch (err: any) {
+      setApplied(null)
+      setPromoError(friendlyError(err?.message || 'Invalid promo code'))
+    } finally {
+      setPromoApplying(false)
+    }
+  }
+
+  function handleRemovePromo() {
+    setApplied(null)
+    setPromoInput('')
+    setPromoError(null)
+  }
 
   function adjust(tierId: string, delta: number) {
     setQuantities((q) => {
@@ -128,6 +185,7 @@ function CheckoutPage() {
         data: {
           eventId: event.id,
           items,
+          promoCode: applied?.code,
           payment: isFree ? undefined : payment,
         },
       })
@@ -200,7 +258,58 @@ function CheckoutPage() {
           </div>
         </div>
 
-        <CheckoutSummary lines={lines} />
+        <div className="rounded-lg border p-4 dark:border-gray-700">
+          <h2 className="mb-3 font-semibold">Promo Code</h2>
+          {applied ? (
+            <div className="flex items-center justify-between rounded bg-green-50 px-3 py-2 text-sm dark:bg-green-950">
+              <div>
+                <span className="font-mono font-semibold text-green-700 dark:text-green-300">
+                  {applied.code}
+                </span>
+                <span className="ml-2 text-green-700 dark:text-green-400">
+                  applied ·{' '}
+                  {applied.discountType === 'percent'
+                    ? `${applied.discountValue}% off`
+                    : `$${(applied.discountValue / 100).toFixed(2)} off`}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemovePromo}
+                className="text-xs text-red-600 hover:underline dark:text-red-400"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                placeholder="Enter code"
+                className="flex-1 rounded border px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-800"
+              />
+              <button
+                type="button"
+                onClick={handleApplyPromo}
+                disabled={promoApplying || !promoInput.trim()}
+                className="rounded border px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-gray-700"
+              >
+                {promoApplying ? 'Checking...' : 'Apply'}
+              </button>
+            </div>
+          )}
+          {promoError && (
+            <p className="mt-2 text-xs text-red-600 dark:text-red-400">{promoError}</p>
+          )}
+        </div>
+
+        <CheckoutSummary
+          lines={lines}
+          discountCents={effectiveDiscountCents}
+          discountLabel={applied?.code}
+        />
 
         {!isFree && totalTickets > 0 && (
           <div className="rounded-lg border p-4 dark:border-gray-700">
@@ -244,6 +353,10 @@ function friendlyError(code: string): string {
     INVALID_CVC: 'Please enter a valid 3-digit CVC.',
     INVALID_CARDHOLDER_NAME: 'Please enter the cardholder name.',
     PAYMENT_REQUIRED: 'Payment details are required.',
+    PROMO_INVALID: 'Invalid promo code.',
+    PROMO_INACTIVE: 'This promo code is not active.',
+    PROMO_EXPIRED: 'This promo code has expired.',
+    PROMO_EXHAUSTED: 'This promo code has reached its usage limit.',
   }
   return map[code] || code
 }

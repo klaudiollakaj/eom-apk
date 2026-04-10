@@ -8,8 +8,6 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { createServerRootRoute } from '@tanstack/react-start/server'
-
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as StaffRouteImport } from './routes/staff'
@@ -62,13 +60,9 @@ import { Route as EventsEventIdCheckoutRouteImport } from './routes/events/$even
 import { Route as ServiceProviderServicesServiceIdEditRouteImport } from './routes/service-provider/services/$serviceId.edit'
 import { Route as OrganizerEventsEventIdTicketsRouteImport } from './routes/organizer/events/$eventId.tickets'
 import { Route as OrganizerEventsEventIdSalesRouteImport } from './routes/organizer/events/$eventId.sales'
+import { Route as OrganizerEventsEventIdPromoCodesRouteImport } from './routes/organizer/events/$eventId.promo-codes'
 import { Route as OrganizerEventsEventIdEditRouteImport } from './routes/organizer/events/$eventId.edit'
 import { Route as AdminUsersUserIdCapsRouteImport } from './routes/admin/users.$userId.caps'
-import { ServerRoute as ApiUploadthingServerRouteImport } from './routes/api/uploadthing'
-import { ServerRoute as ApiChatStreamServerRouteImport } from './routes/api/chat-stream'
-import { ServerRoute as ApiAuthSplatServerRouteImport } from './routes/api/auth.$'
-
-const rootServerRouteImport = createServerRootRoute()
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -334,6 +328,12 @@ const OrganizerEventsEventIdSalesRoute =
     path: '/events/$eventId/sales',
     getParentRoute: () => OrganizerRouteRoute,
   } as any)
+const OrganizerEventsEventIdPromoCodesRoute =
+  OrganizerEventsEventIdPromoCodesRouteImport.update({
+    id: '/events/$eventId/promo-codes',
+    path: '/events/$eventId/promo-codes',
+    getParentRoute: () => OrganizerRouteRoute,
+  } as any)
 const OrganizerEventsEventIdEditRoute =
   OrganizerEventsEventIdEditRouteImport.update({
     id: '/events/$eventId/edit',
@@ -344,21 +344,6 @@ const AdminUsersUserIdCapsRoute = AdminUsersUserIdCapsRouteImport.update({
   id: '/$userId/caps',
   path: '/$userId/caps',
   getParentRoute: () => AdminUsersRoute,
-} as any)
-const ApiUploadthingServerRoute = ApiUploadthingServerRouteImport.update({
-  id: '/api/uploadthing',
-  path: '/api/uploadthing',
-  getParentRoute: () => rootServerRouteImport,
-} as any)
-const ApiChatStreamServerRoute = ApiChatStreamServerRouteImport.update({
-  id: '/api/chat-stream',
-  path: '/api/chat-stream',
-  getParentRoute: () => rootServerRouteImport,
-} as any)
-const ApiAuthSplatServerRoute = ApiAuthSplatServerRouteImport.update({
-  id: '/api/auth/$',
-  path: '/api/auth/$',
-  getParentRoute: () => rootServerRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -412,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/service-provider/negotiations': typeof ServiceProviderNegotiationsIndexRoute
   '/admin/users/$userId/caps': typeof AdminUsersUserIdCapsRoute
   '/organizer/events/$eventId/edit': typeof OrganizerEventsEventIdEditRoute
+  '/organizer/events/$eventId/promo-codes': typeof OrganizerEventsEventIdPromoCodesRoute
   '/organizer/events/$eventId/sales': typeof OrganizerEventsEventIdSalesRoute
   '/organizer/events/$eventId/tickets': typeof OrganizerEventsEventIdTicketsRoute
   '/service-provider/services/$serviceId/edit': typeof ServiceProviderServicesServiceIdEditRoute
@@ -464,6 +450,7 @@ export interface FileRoutesByTo {
   '/service-provider/negotiations': typeof ServiceProviderNegotiationsIndexRoute
   '/admin/users/$userId/caps': typeof AdminUsersUserIdCapsRoute
   '/organizer/events/$eventId/edit': typeof OrganizerEventsEventIdEditRoute
+  '/organizer/events/$eventId/promo-codes': typeof OrganizerEventsEventIdPromoCodesRoute
   '/organizer/events/$eventId/sales': typeof OrganizerEventsEventIdSalesRoute
   '/organizer/events/$eventId/tickets': typeof OrganizerEventsEventIdTicketsRoute
   '/service-provider/services/$serviceId/edit': typeof ServiceProviderServicesServiceIdEditRoute
@@ -520,6 +507,7 @@ export interface FileRoutesById {
   '/service-provider/negotiations/': typeof ServiceProviderNegotiationsIndexRoute
   '/admin/users/$userId/caps': typeof AdminUsersUserIdCapsRoute
   '/organizer/events/$eventId/edit': typeof OrganizerEventsEventIdEditRoute
+  '/organizer/events/$eventId/promo-codes': typeof OrganizerEventsEventIdPromoCodesRoute
   '/organizer/events/$eventId/sales': typeof OrganizerEventsEventIdSalesRoute
   '/organizer/events/$eventId/tickets': typeof OrganizerEventsEventIdTicketsRoute
   '/service-provider/services/$serviceId/edit': typeof ServiceProviderServicesServiceIdEditRoute
@@ -577,6 +565,7 @@ export interface FileRouteTypes {
     | '/service-provider/negotiations'
     | '/admin/users/$userId/caps'
     | '/organizer/events/$eventId/edit'
+    | '/organizer/events/$eventId/promo-codes'
     | '/organizer/events/$eventId/sales'
     | '/organizer/events/$eventId/tickets'
     | '/service-provider/services/$serviceId/edit'
@@ -629,6 +618,7 @@ export interface FileRouteTypes {
     | '/service-provider/negotiations'
     | '/admin/users/$userId/caps'
     | '/organizer/events/$eventId/edit'
+    | '/organizer/events/$eventId/promo-codes'
     | '/organizer/events/$eventId/sales'
     | '/organizer/events/$eventId/tickets'
     | '/service-provider/services/$serviceId/edit'
@@ -684,6 +674,7 @@ export interface FileRouteTypes {
     | '/service-provider/negotiations/'
     | '/admin/users/$userId/caps'
     | '/organizer/events/$eventId/edit'
+    | '/organizer/events/$eventId/promo-codes'
     | '/organizer/events/$eventId/sales'
     | '/organizer/events/$eventId/tickets'
     | '/service-provider/services/$serviceId/edit'
@@ -713,35 +704,6 @@ export interface RootRouteChildren {
   ServicesIndexRoute: typeof ServicesIndexRoute
   TicketsIndexRoute: typeof TicketsIndexRoute
   EventsEventIdCheckoutRoute: typeof EventsEventIdCheckoutRoute
-}
-export interface FileServerRoutesByFullPath {
-  '/api/chat-stream': typeof ApiChatStreamServerRoute
-  '/api/uploadthing': typeof ApiUploadthingServerRoute
-  '/api/auth/$': typeof ApiAuthSplatServerRoute
-}
-export interface FileServerRoutesByTo {
-  '/api/chat-stream': typeof ApiChatStreamServerRoute
-  '/api/uploadthing': typeof ApiUploadthingServerRoute
-  '/api/auth/$': typeof ApiAuthSplatServerRoute
-}
-export interface FileServerRoutesById {
-  __root__: typeof rootServerRouteImport
-  '/api/chat-stream': typeof ApiChatStreamServerRoute
-  '/api/uploadthing': typeof ApiUploadthingServerRoute
-  '/api/auth/$': typeof ApiAuthSplatServerRoute
-}
-export interface FileServerRouteTypes {
-  fileServerRoutesByFullPath: FileServerRoutesByFullPath
-  fullPaths: '/api/chat-stream' | '/api/uploadthing' | '/api/auth/$'
-  fileServerRoutesByTo: FileServerRoutesByTo
-  to: '/api/chat-stream' | '/api/uploadthing' | '/api/auth/$'
-  id: '__root__' | '/api/chat-stream' | '/api/uploadthing' | '/api/auth/$'
-  fileServerRoutesById: FileServerRoutesById
-}
-export interface RootServerRouteChildren {
-  ApiChatStreamServerRoute: typeof ApiChatStreamServerRoute
-  ApiUploadthingServerRoute: typeof ApiUploadthingServerRoute
-  ApiAuthSplatServerRoute: typeof ApiAuthSplatServerRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1103,6 +1065,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerEventsEventIdSalesRouteImport
       parentRoute: typeof OrganizerRouteRoute
     }
+    '/organizer/events/$eventId/promo-codes': {
+      id: '/organizer/events/$eventId/promo-codes'
+      path: '/events/$eventId/promo-codes'
+      fullPath: '/organizer/events/$eventId/promo-codes'
+      preLoaderRoute: typeof OrganizerEventsEventIdPromoCodesRouteImport
+      parentRoute: typeof OrganizerRouteRoute
+    }
     '/organizer/events/$eventId/edit': {
       id: '/organizer/events/$eventId/edit'
       path: '/events/$eventId/edit'
@@ -1116,31 +1085,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/users/$userId/caps'
       preLoaderRoute: typeof AdminUsersUserIdCapsRouteImport
       parentRoute: typeof AdminUsersRoute
-    }
-  }
-}
-declare module '@tanstack/react-start/server' {
-  interface ServerFileRoutesByPath {
-    '/api/uploadthing': {
-      id: '/api/uploadthing'
-      path: '/api/uploadthing'
-      fullPath: '/api/uploadthing'
-      preLoaderRoute: typeof ApiUploadthingServerRouteImport
-      parentRoute: typeof rootServerRouteImport
-    }
-    '/api/chat-stream': {
-      id: '/api/chat-stream'
-      path: '/api/chat-stream'
-      fullPath: '/api/chat-stream'
-      preLoaderRoute: typeof ApiChatStreamServerRouteImport
-      parentRoute: typeof rootServerRouteImport
-    }
-    '/api/auth/$': {
-      id: '/api/auth/$'
-      path: '/api/auth/$'
-      fullPath: '/api/auth/$'
-      preLoaderRoute: typeof ApiAuthSplatServerRouteImport
-      parentRoute: typeof rootServerRouteImport
     }
   }
 }
@@ -1203,6 +1147,7 @@ interface OrganizerRouteRouteChildren {
   OrganizerNegotiationsNegotiationIdRoute: typeof OrganizerNegotiationsNegotiationIdRoute
   OrganizerNegotiationsIndexRoute: typeof OrganizerNegotiationsIndexRoute
   OrganizerEventsEventIdEditRoute: typeof OrganizerEventsEventIdEditRoute
+  OrganizerEventsEventIdPromoCodesRoute: typeof OrganizerEventsEventIdPromoCodesRoute
   OrganizerEventsEventIdSalesRoute: typeof OrganizerEventsEventIdSalesRoute
   OrganizerEventsEventIdTicketsRoute: typeof OrganizerEventsEventIdTicketsRoute
 }
@@ -1214,6 +1159,7 @@ const OrganizerRouteRouteChildren: OrganizerRouteRouteChildren = {
     OrganizerNegotiationsNegotiationIdRoute,
   OrganizerNegotiationsIndexRoute: OrganizerNegotiationsIndexRoute,
   OrganizerEventsEventIdEditRoute: OrganizerEventsEventIdEditRoute,
+  OrganizerEventsEventIdPromoCodesRoute: OrganizerEventsEventIdPromoCodesRoute,
   OrganizerEventsEventIdSalesRoute: OrganizerEventsEventIdSalesRoute,
   OrganizerEventsEventIdTicketsRoute: OrganizerEventsEventIdTicketsRoute,
 }
@@ -1283,11 +1229,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-const rootServerRouteChildren: RootServerRouteChildren = {
-  ApiChatStreamServerRoute: ApiChatStreamServerRoute,
-  ApiUploadthingServerRoute: ApiUploadthingServerRoute,
-  ApiAuthSplatServerRoute: ApiAuthSplatServerRoute,
-}
-export const serverRouteTree = rootServerRouteImport
-  ._addFileChildren(rootServerRouteChildren)
-  ._addFileTypes<FileServerRouteTypes>()

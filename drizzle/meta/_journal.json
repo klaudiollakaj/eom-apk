@@ -57,6 +57,13 @@
       "when": 1775845908739,
       "tag": "0007_salty_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775847184717,
+      "tag": "0008_strange_drax",
+      "breakpoints": true
     }
   ]
 }
