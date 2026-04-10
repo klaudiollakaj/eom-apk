@@ -6,6 +6,8 @@ import { QrCodeDisplay } from '~/components/tickets/QrCodeDisplay'
 import { TransferModal } from '~/components/tickets/TransferModal'
 import { RefundModal } from '~/components/tickets/RefundModal'
 import { RoleHeader } from '~/components/layout/RoleHeader'
+import { useSession } from '~/lib/auth-client'
+import { generateTicketPdf } from '~/lib/ticket-pdf'
 
 export const Route = createFileRoute('/tickets/$ticketId')({
   beforeLoad: async () => {
@@ -22,8 +24,35 @@ export const Route = createFileRoute('/tickets/$ticketId')({
 function TicketDetailPage() {
   const { ticket } = Route.useLoaderData()
   const router = useRouter()
+  const session = useSession()
   const [showTransfer, setShowTransfer] = useState(false)
   const [showRefund, setShowRefund] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownload() {
+    setDownloading(true)
+    try {
+      await generateTicketPdf({
+        ticketId: ticket.id,
+        qrCode: ticket.qrCode,
+        eventTitle: ticket.event.title,
+        startDate: ticket.event.startDate,
+        startTime: ticket.event.startTime,
+        venueName: ticket.event.venueName,
+        city: ticket.event.city,
+        country: ticket.event.country,
+        tierName: ticket.tier.name,
+        priceCents: ticket.tier.priceCents,
+        attendeeName: session.data?.user?.name ?? 'Attendee',
+        orderNumber: ticket.order?.orderNumber ?? null,
+      })
+    } catch (err) {
+      console.error('Failed to generate PDF:', err)
+      alert('Failed to generate ticket PDF.')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const startDate = new Date(ticket.event.startDate)
   const eventStarted = startDate.getTime() <= Date.now()
@@ -87,6 +116,13 @@ function TicketDetailPage() {
                     Present this at entry
                   </p>
                 )}
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-700"
+                >
+                  {downloading ? 'Generating...' : 'Download PDF'}
+                </button>
               </>
             ) : ticket.status === 'checked_in' ? (
               <div className="rounded-lg border-2 border-green-600 bg-green-50 p-6 text-center dark:bg-green-950">
