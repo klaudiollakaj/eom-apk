@@ -17,6 +17,7 @@ import { isAdmin, type Role } from '~/lib/permissions'
 import { hasCapability, requireCapability } from '~/lib/permissions.server'
 import { signTicketToken, verifyTicketToken } from '~/lib/ticket-qr.server'
 import { sendEmail } from '~/lib/email'
+import { getStripe, isStripeEnabled, getStripePublishableKey } from '~/lib/stripe.server'
 
 async function requireEventOwnership(eventId: string, userId: string, role: Role) {
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
@@ -287,12 +288,120 @@ function generateOrderNumber() {
   return `EOM-${ts}-${rand}`
 }
 
+/**
+ * Compute cart total without locking. Used for Stripe payment-intent creation
+ * where we need a number upfront — the authoritative, locked recomputation
+ * happens inside purchaseTickets when tickets are actually minted.
+ */
+async function computeCartPricing(input: {
+  eventId: string
+  items: { tierId: string; quantity: number }[]
+  promoCodeStr?: string
+}): Promise<{ subtotalCents: number; discountCents: number; totalCents: number }> {
+  if (!input.items.length) throw new Error('EMPTY_CART')
+  const event = await db.query.events.findFirst({
+    where: eq(events.id, input.eventId),
+  })
+  if (!event) throw new Error('EVENT_NOT_FOUND')
+  if (event.startDate.getTime() <= Date.now()) throw new Error('EVENT_STARTED')
+
+  const tierIds = input.items.map((i) => i.tierId)
+  const tierRows = await db.query.ticketTiers.findMany({
+    where: and(
+      inArray(ticketTiers.id, tierIds),
+      eq(ticketTiers.eventId, input.eventId),
+    ),
+  })
+  if (tierRows.length !== tierIds.length) throw new Error('TIER_NOT_FOUND')
+
+  let subtotalCents = 0
+  for (const item of input.items) {
+    const tier = tierRows.find((t) => t.id === item.tierId)!
+    subtotalCents += tier.priceCents * item.quantity
+  }
+
+  let discountCents = 0
+  if (input.promoCodeStr && input.promoCodeStr.trim()) {
+    const codeStr = input.promoCodeStr.trim().toUpperCase()
+    const promo = await db.query.promoCodes.findFirst({
+      where: and(
+        eq(promoCodes.eventId, input.eventId),
+        sql`UPPER(${promoCodes.code}) = ${codeStr}`,
+      ),
+    })
+    if (promo && promo.isActive) {
+      const expired = promo.expiresAt && promo.expiresAt.getTime() < Date.now()
+      const exhausted = promo.maxUses !== null && promo.usedCount >= promo.maxUses
+      if (!expired && !exhausted) {
+        if (promo.discountType === 'percent') {
+          discountCents = Math.floor((subtotalCents * promo.discountValue) / 100)
+        } else {
+          discountCents = promo.discountValue
+        }
+        if (discountCents > subtotalCents) discountCents = subtotalCents
+      }
+    }
+  }
+
+  return {
+    subtotalCents,
+    discountCents,
+    totalCents: subtotalCents - discountCents,
+  }
+}
+
+export const getStripeConfig = createServerFn({ method: 'GET' }).handler(
+  async () => ({
+    enabled: isStripeEnabled(),
+    publishableKey: getStripePublishableKey(),
+  }),
+)
+
+export const createStripePaymentIntent = createServerFn({ method: 'POST' })
+  .validator(
+    (input: {
+      eventId: string
+      items: { tierId: string; quantity: number }[]
+      promoCode?: string
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const session = await requireAuth()
+    const stripe = getStripe()
+    if (!stripe) throw new Error('STRIPE_NOT_CONFIGURED')
+
+    const pricing = await computeCartPricing({
+      eventId: data.eventId,
+      items: data.items,
+      promoCodeStr: data.promoCode,
+    })
+    if (pricing.totalCents === 0) throw new Error('FREE_ORDER_NO_PAYMENT_NEEDED')
+
+    const intent = await stripe.paymentIntents.create({
+      amount: pricing.totalCents,
+      currency: 'usd',
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        userId: session.user.id,
+        eventId: data.eventId,
+      },
+    })
+
+    return {
+      clientSecret: intent.client_secret,
+      paymentIntentId: intent.id,
+      totalCents: pricing.totalCents,
+      discountCents: pricing.discountCents,
+    }
+  })
+
 export const purchaseTickets = createServerFn({ method: 'POST' })
   .validator(
     (input: {
       eventId: string
       items: { tierId: string; quantity: number }[]
       promoCode?: string
+      paymentIntentId?: string
       payment?: {
         cardNumber: string
         expiry: string
@@ -423,13 +532,36 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
       const totalCents = subtotalCents - discountCents
       const isFree = totalCents === 0
 
+      // Payment verification — Stripe (if enabled + intent supplied) or mock
+      const stripe = getStripe()
+      let paymentMethod: string = 'mock'
+      let paymentRef: string = `mock_${crypto.randomUUID()}`
+
       if (!isFree) {
-        if (!data.payment) throw new Error('PAYMENT_REQUIRED')
-        validateMockCard(data.payment)
+        if (stripe && data.paymentIntentId) {
+          const intent = await stripe.paymentIntents.retrieve(data.paymentIntentId)
+          if (intent.status !== 'succeeded') {
+            throw new Error('PAYMENT_NOT_SUCCEEDED')
+          }
+          if (intent.amount !== totalCents) {
+            throw new Error('PAYMENT_AMOUNT_MISMATCH')
+          }
+          if (intent.metadata?.userId && intent.metadata.userId !== userId) {
+            throw new Error('PAYMENT_USER_MISMATCH')
+          }
+          paymentMethod = 'stripe'
+          paymentRef = intent.id
+        } else if (stripe) {
+          // Stripe is enabled but no intent supplied — don't fall back to mock
+          throw new Error('PAYMENT_INTENT_REQUIRED')
+        } else {
+          // Dev/mock flow
+          if (!data.payment) throw new Error('PAYMENT_REQUIRED')
+          validateMockCard(data.payment)
+        }
       }
 
       const orderNumber = generateOrderNumber()
-      const paymentRef = `mock_${crypto.randomUUID()}`
 
       const [order] = await tx
         .insert(orders)
@@ -442,7 +574,7 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
           promoCodeId: appliedPromoId,
           totalCents,
           status: 'paid',
-          paymentMethod: 'mock',
+          paymentMethod,
           paymentRef,
           paidAt: now,
         })
@@ -760,6 +892,28 @@ async function performRefund(
     await tx.execute(
       sql`SELECT id FROM ticket_tiers WHERE id = ${ticket.tierId} FOR UPDATE`,
     )
+
+    // Stripe refund (best-effort; logs on failure but doesn't block DB refund)
+    if (
+      ticket.order.paymentMethod === 'stripe' &&
+      ticket.order.paymentRef &&
+      ticket.tier.priceCents > 0
+    ) {
+      const stripe = getStripe()
+      if (stripe) {
+        try {
+          await stripe.refunds.create({
+            payment_intent: ticket.order.paymentRef,
+            amount: ticket.tier.priceCents,
+            reason: 'requested_by_customer',
+            metadata: { ticketId: ticket.id, actorId },
+          })
+        } catch (err) {
+          console.error('[stripe refund] failed', err)
+          if (!isAdminOverride) throw new Error('STRIPE_REFUND_FAILED')
+        }
+      }
+    }
 
     await tx.insert(refunds).values({
       orderId: ticket.orderId,

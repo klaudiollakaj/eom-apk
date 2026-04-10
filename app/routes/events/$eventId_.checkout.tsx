@@ -1,12 +1,18 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { getEvent } from '~/server/fns/events'
-import { listEventTiers, purchaseTickets } from '~/server/fns/tickets'
+import {
+  listEventTiers,
+  purchaseTickets,
+  getStripeConfig,
+  createStripePaymentIntent,
+} from '~/server/fns/tickets'
 import { previewPromoCode } from '~/server/fns/promo-codes'
 import { getSession } from '~/server/fns/auth-helpers'
 import { CheckoutSummary } from '~/components/tickets/CheckoutSummary'
 import { MockPaymentForm, type MockPaymentValues } from '~/components/tickets/MockPaymentForm'
+import { StripePaymentForm } from '~/components/tickets/StripePaymentForm'
 
 const searchSchema = z.object({
   tier: z.string().optional(),
@@ -28,12 +34,13 @@ export const Route = createFileRoute('/events/$eventId_/checkout')({
   },
   loader: async ({ params }) => {
     try {
-      const [event, tiers] = await Promise.all([
+      const [event, tiers, stripeConfig] = await Promise.all([
         getEvent({ data: { eventId: params.eventId } }),
         listEventTiers({ data: { eventId: params.eventId } }),
+        getStripeConfig().catch(() => ({ enabled: false, publishableKey: null })),
       ])
       if (!event) throw new Error('Event not found')
-      return { event, tiers: tiers ?? [] }
+      return { event, tiers: tiers ?? [], stripeConfig }
     } catch (err: any) {
       console.error('[checkout loader]', err)
       throw err
@@ -51,9 +58,12 @@ export const Route = createFileRoute('/events/$eventId_/checkout')({
 })
 
 function CheckoutPage() {
-  const { event, tiers } = Route.useLoaderData()
+  const { event, tiers, stripeConfig } = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate()
+  const stripeEnabled = !!(
+    stripeConfig?.enabled && stripeConfig?.publishableKey
+  )
 
   const [quantities, setQuantities] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {}
@@ -83,6 +93,21 @@ function CheckoutPage() {
     discountValue: number
     discountCents: number
   } | null>(null)
+
+  // Stripe state
+  const [stripeIntent, setStripeIntent] = useState<{
+    clientSecret: string
+    paymentIntentId: string
+    totalCents: number
+  } | null>(null)
+  const [creatingIntent, setCreatingIntent] = useState(false)
+  const [stripeConfirm, setStripeConfirm] = useState<
+    (() => Promise<{ error?: string }>) | null
+  >(null)
+  const onStripeReady = useCallback(
+    (fn: () => Promise<{ error?: string }>) => setStripeConfirm(() => fn),
+    [],
+  )
 
   const lines = useMemo(
     () =>
@@ -137,6 +162,8 @@ function CheckoutPage() {
         },
       })
       setApplied(result)
+      setStripeIntent(null)
+      setStripeConfirm(null)
     } catch (err: any) {
       setApplied(null)
       setPromoError(friendlyError(err?.message || 'Invalid promo code'))
@@ -149,6 +176,8 @@ function CheckoutPage() {
     setApplied(null)
     setPromoInput('')
     setPromoError(null)
+    setStripeIntent(null)
+    setStripeConfirm(null)
   }
 
   function adjust(tierId: string, delta: number) {
@@ -162,6 +191,36 @@ function CheckoutPage() {
       )
       return { ...q, [tierId]: next }
     })
+    // Cart changed — any pending Stripe intent is stale
+    setStripeIntent(null)
+    setStripeConfirm(null)
+  }
+
+  async function loadStripePayment() {
+    setError(null)
+    setCreatingIntent(true)
+    try {
+      const items = lines
+        .filter((l) => l.quantity > 0)
+        .map((l) => ({ tierId: l.tierId, quantity: l.quantity }))
+      const intent = await createStripePaymentIntent({
+        data: {
+          eventId: event.id,
+          items,
+          promoCode: applied?.code,
+        },
+      })
+      if (!intent.clientSecret) throw new Error('Missing client secret')
+      setStripeIntent({
+        clientSecret: intent.clientSecret,
+        paymentIntentId: intent.paymentIntentId,
+        totalCents: intent.totalCents,
+      })
+    } catch (err: any) {
+      setError(friendlyError(err?.message || 'Failed to initialize payment'))
+    } finally {
+      setCreatingIntent(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -179,14 +238,40 @@ function CheckoutPage() {
 
     setSubmitting(true)
     try {
-      // Fake 1s delay to feel like a payment
-      await new Promise((r) => setTimeout(r, 1000))
+      let paymentIntentId: string | undefined
+
+      if (!isFree && stripeEnabled) {
+        if (!stripeIntent || !stripeConfirm) {
+          setError('Initialize payment first.')
+          setSubmitting(false)
+          return
+        }
+        if (stripeIntent.totalCents !== totalCents) {
+          setError('Cart changed — please reload payment.')
+          setStripeIntent(null)
+          setStripeConfirm(null)
+          setSubmitting(false)
+          return
+        }
+        const { error: confirmErr } = await stripeConfirm()
+        if (confirmErr) {
+          setError(confirmErr)
+          setSubmitting(false)
+          return
+        }
+        paymentIntentId = stripeIntent.paymentIntentId
+      } else if (!isFree) {
+        // Mock flow — small fake delay to feel like a payment
+        await new Promise((r) => setTimeout(r, 800))
+      }
+
       const result = await purchaseTickets({
         data: {
           eventId: event.id,
           items,
           promoCode: applied?.code,
-          payment: isFree ? undefined : payment,
+          paymentIntentId,
+          payment: isFree || stripeEnabled ? undefined : payment,
         },
       })
       const firstId = result.ticketIds[0]
@@ -314,7 +399,31 @@ function CheckoutPage() {
         {!isFree && totalTickets > 0 && (
           <div className="rounded-lg border p-4 dark:border-gray-700">
             <h2 className="mb-3 font-semibold">Payment</h2>
-            <MockPaymentForm values={payment} onChange={setPayment} />
+            {stripeEnabled ? (
+              stripeIntent ? (
+                <StripePaymentForm
+                  publishableKey={stripeConfig!.publishableKey!}
+                  clientSecret={stripeIntent.clientSecret}
+                  onReady={onStripeReady}
+                />
+              ) : (
+                <div>
+                  <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
+                    Click below to load the secure payment form.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={loadStripePayment}
+                    disabled={creatingIntent}
+                    className="rounded border px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-gray-700"
+                  >
+                    {creatingIntent ? 'Loading...' : 'Load payment form'}
+                  </button>
+                </div>
+              )
+            ) : (
+              <MockPaymentForm values={payment} onChange={setPayment} />
+            )}
           </div>
         )}
 
@@ -326,7 +435,11 @@ function CheckoutPage() {
 
         <button
           type="submit"
-          disabled={submitting || totalTickets === 0}
+          disabled={
+            submitting ||
+            totalTickets === 0 ||
+            (!isFree && stripeEnabled && (!stripeIntent || !stripeConfirm))
+          }
           className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {submitting
@@ -357,6 +470,12 @@ function friendlyError(code: string): string {
     PROMO_INACTIVE: 'This promo code is not active.',
     PROMO_EXPIRED: 'This promo code has expired.',
     PROMO_EXHAUSTED: 'This promo code has reached its usage limit.',
+    STRIPE_NOT_CONFIGURED: 'Payment provider unavailable. Try again later.',
+    PAYMENT_INTENT_REQUIRED: 'Please complete payment before submitting.',
+    PAYMENT_NOT_SUCCEEDED: 'Payment was not completed. Please try again.',
+    PAYMENT_AMOUNT_MISMATCH: 'Cart changed — please reload payment.',
+    PAYMENT_USER_MISMATCH: 'Session mismatch. Please reload the page.',
+    FREE_ORDER_NO_PAYMENT_NEEDED: 'This order is free — no payment required.',
   }
   return map[code] || code
 }
