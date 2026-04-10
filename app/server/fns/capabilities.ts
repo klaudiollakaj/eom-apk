@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, and } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import { userCapabilities, userLogs, users } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -80,6 +80,9 @@ export const updateUserCapability = createServerFn({ method: 'POST' })
       'admin:analytics:view',
       'admin:reviews:moderate',
       'admin:chat:moderate',
+      'admin:tickets:view',
+      'admin:tickets:refund',
+      'staff:scan_tickets',
     ]
     const isValidKey = VALID_CAPABILITY_PREFIXES.some(
       (prefix) =>

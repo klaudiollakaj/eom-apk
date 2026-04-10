@@ -34,10 +34,13 @@ export function OrganizerAnalyticsSection() {
       getOrganizerSpendByEvent({ data: { limit: 5 } }),
       getOrganizerNegotiationTrend(),
     ]).then(([a, b, s, t]) => {
-      setAnalytics(a)
-      setEventBreakdown(b)
-      setSpendByEvent(s)
-      setTrend(t)
+      setAnalytics(a ?? null)
+      setEventBreakdown(Array.isArray(b) ? b : [])
+      setSpendByEvent(Array.isArray(s) ? s : [])
+      setTrend(Array.isArray(t) ? t : [])
+      setLoading(false)
+    }).catch((err) => {
+      console.error('Failed to load organizer analytics:', err)
       setLoading(false)
     })
   }, [])

@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, gte, count, sum, sql, and, desc } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import {
   users, events, services, serviceCategories, categories,
   negotiations, negotiationRounds, eventServices,

@@ -1,7 +1,7 @@
 // app/server/fns/negotiations.ts
 import { createServerFn } from '@tanstack/react-start'
 import { eq, and, desc, asc, notInArray } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import {
   negotiations, negotiationRounds, eventServices,
   services, servicePackages, events, users, userLogs,

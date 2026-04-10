@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { EventForm, type EventFormData } from '~/components/events/EventForm'
 import { getEvent, updateEvent, publishEvent } from '~/server/fns/events'
 
@@ -81,7 +81,26 @@ function EditEventPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="mb-6 text-2xl font-bold">Edit Event</h1>
+      <h1 className="mb-2 text-2xl font-bold">{event.title}</h1>
+      <div className="mb-6 flex gap-4 border-b dark:border-gray-700">
+        <span className="-mb-px border-b-2 border-indigo-600 pb-2 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+          Details
+        </span>
+        <Link
+          to="/organizer/events/$eventId/tickets"
+          params={{ eventId: event.id }}
+          className="pb-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+        >
+          Tickets
+        </Link>
+        <Link
+          to="/organizer/events/$eventId/sales"
+          params={{ eventId: event.id }}
+          className="pb-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+        >
+          Sales
+        </Link>
+      </div>
       <EventForm initialData={initialData} onSubmit={handleSubmit} submitLabel={event.status === 'draft' ? 'Publish' : 'Save'} />
     </div>
   )

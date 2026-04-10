@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import { reviews, eventServices, events, users } from '~/lib/schema'
 import { eq, and, desc, isNotNull, isNull, sql, avg, count } from 'drizzle-orm'
 import { requireAuth } from './auth-helpers'

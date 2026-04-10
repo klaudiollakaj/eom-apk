@@ -2,27 +2,26 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Header } from '~/components/layout/Header'
 import { Footer } from '~/components/layout/Footer'
 import { EventServicesList } from '~/components/events/EventServicesList'
+import { TierCard } from '~/components/tickets/TierCard'
 import { getNavLinks } from '~/server/fns/navigation'
 import { getEvent } from '~/server/fns/events'
+import { listEventTiers } from '~/server/fns/tickets'
 
 export const Route = createFileRoute('/events/$eventId')({
   loader: async ({ params }) => {
-    try {
-      const [headerLinks, footerLinks, event] = await Promise.all([
-        getNavLinks({ data: { position: 'header' } }),
-        getNavLinks({ data: { position: 'footer' } }),
-        getEvent({ data: { eventId: params.eventId } }),
-      ])
-      return { headerLinks, footerLinks, event }
-    } catch {
-      return { headerLinks: [], footerLinks: [], event: null }
-    }
+    const [headerLinks, footerLinks, event, tiers] = await Promise.all([
+      getNavLinks({ data: { position: 'header' } }).catch(() => []),
+      getNavLinks({ data: { position: 'footer' } }).catch(() => []),
+      getEvent({ data: { eventId: params.eventId } }).catch(() => null),
+      listEventTiers({ data: { eventId: params.eventId } }).catch(() => []),
+    ])
+    return { headerLinks, footerLinks, event, tiers }
   },
   component: EventDetailPage,
 })
 
 function EventDetailPage() {
-  const { headerLinks, footerLinks, event } = Route.useLoaderData()
+  const { headerLinks, footerLinks, event, tiers } = Route.useLoaderData()
 
   if (!event) {
     return (
@@ -120,13 +119,6 @@ function EventDetailPage() {
                   </div>
                 )}
 
-                <div>
-                  <p className="text-xs font-medium uppercase text-gray-500">Price</p>
-                  <p className="mt-1 text-xl font-bold">
-                    {event.price && Number(event.price) > 0 ? `$${Number(event.price).toFixed(2)}` : 'Free'}
-                  </p>
-                </div>
-
                 {event.capacity && (
                   <div>
                     <p className="text-xs font-medium uppercase text-gray-500">Capacity</p>
@@ -141,9 +133,18 @@ function EventDetailPage() {
                   </div>
                 )}
 
-                <button className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700">
-                  Buy Tickets
-                </button>
+                <div>
+                  <p className="text-xs font-medium uppercase text-gray-500">Tickets</p>
+                  {tiers.length === 0 ? (
+                    <p className="mt-1 text-sm text-gray-500">No tickets available yet.</p>
+                  ) : (
+                    <div className="mt-2 space-y-3">
+                      {tiers.map((tier: any) => (
+                        <TierCard key={tier.id} tier={tier} eventId={event.id} />
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div className="border-t pt-4 dark:border-gray-700">
                   <p className="text-xs font-medium uppercase text-gray-500">Organized by</p>

@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, and } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import {
   publishingPermissions,
   navigationLinks,

@@ -1,9 +1,9 @@
 // app/routes/api/chat-stream.ts
 import { createServerFileRoute } from '@tanstack/react-start/server'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import { messages, negotiations } from '~/lib/schema'
 import { eq, and, gt, desc } from 'drizzle-orm'
-import { auth } from '~/lib/auth'
+import { auth } from '~/lib/auth.server'
 
 export const ServerRoute = createServerFileRoute('/api/chat-stream').methods({
   GET: async ({ request }) => {

@@ -1,7 +1,7 @@
 // app/server/fns/services.ts
 import { createServerFn } from '@tanstack/react-start'
 import { eq, and, asc, desc, ilike, or, sql, avg, count } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import {
   services, servicePackages, serviceImages, serviceCategories,
   negotiations, users, userLogs, reviews,

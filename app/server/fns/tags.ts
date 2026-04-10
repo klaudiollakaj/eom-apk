@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, ilike, asc } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import { tags } from '~/lib/schema'
 import { slugify } from '~/lib/slugify'
 

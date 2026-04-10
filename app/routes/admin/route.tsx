@@ -44,6 +44,8 @@ function AdminLayout() {
           'admin:analytics:view',
           'admin:reviews:moderate',
           'admin:chat:moderate',
+          'admin:tickets:view',
+          'admin:tickets:refund',
         ]
       : (capabilities as string[])
 

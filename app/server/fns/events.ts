@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import {
   eq, and, or, asc, desc, ilike, gte, lte, inArray, notInArray, count, sql,
 } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import {
   events, eventImages, eventTags, tags, categories, users, userLogs,
   publishingPermissions, navigationLinks, negotiations, negotiationRounds, eventServices,

@@ -43,6 +43,13 @@
       "when": 1775755063575,
       "tag": "0005_wild_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775816814576,
+      "tag": "0006_flowery_ultron",
+      "breakpoints": true
     }
   ]
 }

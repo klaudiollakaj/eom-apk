@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, asc } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import { serviceCategories, services, userLogs } from '~/lib/schema'
 import { requireAuth } from '~/server/fns/auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'

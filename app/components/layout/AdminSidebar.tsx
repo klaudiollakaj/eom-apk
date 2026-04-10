@@ -67,6 +67,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     href: '/admin/chat',
     capability: 'admin:chat:moderate',
   },
+  {
+    label: 'Tickets',
+    href: '/admin/tickets',
+    capability: 'admin:tickets:view',
+  },
 ]
 
 export function AdminSidebar({

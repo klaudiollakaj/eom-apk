@@ -26,13 +26,13 @@ function OrganizerDashboard() {
     const result = await listOrganizerEvents({
       data: { status: statusFilter || undefined },
     })
-    setEvents(result)
+    setEvents(Array.isArray(result) ? result : [])
   }
 
   useEffect(() => { fetchEvents() }, [statusFilter])
 
   function fetchReviewableDeals() {
-    getReviewableDeals().then(setReviewableDeals)
+    getReviewableDeals().then((r) => setReviewableDeals(Array.isArray(r) ? r : []))
   }
 
   useEffect(() => { fetchReviewableDeals() }, [])
@@ -166,11 +166,11 @@ function OrganizerDashboard() {
         </div>
       )}
 
-      {reviewableDeals.length > 0 && (
+      {(reviewableDeals?.length ?? 0) > 0 && (
         <div className="mt-8">
-          <h2 className="mb-4 text-lg font-bold">Pending Reviews ({reviewableDeals.length})</h2>
+          <h2 className="mb-4 text-lg font-bold">Pending Reviews ({reviewableDeals?.length ?? 0})</h2>
           <div className="space-y-2">
-            {reviewableDeals.map((deal: any) => (
+            {(reviewableDeals ?? []).map((deal: any) => (
               <div key={deal.id} className="flex items-center justify-between rounded-lg border p-3 dark:border-gray-700">
                 <div>
                   <p className="text-sm font-medium">{deal.providerName} — {deal.serviceTitle}</p>

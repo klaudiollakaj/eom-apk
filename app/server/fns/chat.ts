@@ -1,6 +1,6 @@
 // app/server/fns/chat.ts
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import { messages, messageFlags, messageReadReceipts, negotiations, negotiationRounds, events, users } from '~/lib/schema'
 import { eq, and, desc, asc, gt, sql, isNull, isNotNull, count } from 'drizzle-orm'
 import { requireAuth } from './auth-helpers'

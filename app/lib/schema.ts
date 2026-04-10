@@ -326,6 +326,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   reviewsAsReviewer: many(reviews, { relationName: 'reviewer' }),
   reviewsAsReviewee: many(reviews, { relationName: 'reviewee' }),
   sentMessages: many(messages),
+  orders: many(orders),
+  tickets: many(tickets, { relationName: 'ticketOwner' }),
 }))
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -377,6 +379,8 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   tags: many(eventTags),
   negotiations: many(negotiations),
   eventServices: many(eventServices),
+  ticketTiers: many(ticketTiers),
+  tickets: many(tickets),
 }))
 
 export const eventImagesRelations = relations(eventImages, ({ one }) => ({
@@ -519,6 +523,122 @@ export const messageReadReceiptsRelations = relations(messageReadReceipts, ({ on
   negotiation: one(negotiations, { fields: [messageReadReceipts.negotiationId], references: [negotiations.id] }),
   user: one(users, { fields: [messageReadReceipts.userId], references: [users.id] }),
   lastReadMessage: one(messages, { fields: [messageReadReceipts.lastReadMessageId], references: [messages.id] }),
+}))
+
+// ============================================================
+// Ticketing
+// ============================================================
+
+export const ticketTiers = pgTable('ticket_tiers', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  priceCents: integer('price_cents').notNull(),
+  quantityTotal: integer('quantity_total').notNull(),
+  quantitySold: integer('quantity_sold').notNull().default(0),
+  salesStartAt: timestamp('sales_start_at'),
+  salesEndAt: timestamp('sales_end_at'),
+  maxPerUser: integer('max_per_user').notNull().default(10),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  index('ticket_tiers_event_idx').on(table.eventId),
+])
+
+export const orders = pgTable('orders', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orderNumber: text('order_number').notNull().unique(),
+  userId: text('user_id').notNull().references(() => users.id),
+  eventId: text('event_id').notNull().references(() => events.id),
+  subtotalCents: integer('subtotal_cents').notNull(),
+  totalCents: integer('total_cents').notNull(),
+  status: text('status').notNull().default('pending'),
+  paymentMethod: text('payment_method').notNull().default('mock'),
+  paymentRef: text('payment_ref'),
+  paidAt: timestamp('paid_at'),
+  refundedAt: timestamp('refunded_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  index('orders_user_created_idx').on(table.userId, table.createdAt),
+  index('orders_event_idx').on(table.eventId),
+])
+
+export const tickets = pgTable('tickets', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+  tierId: text('tier_id').notNull().references(() => ticketTiers.id, { onDelete: 'restrict' }),
+  eventId: text('event_id').notNull().references(() => events.id),
+  ownerId: text('owner_id').notNull().references(() => users.id),
+  status: text('status').notNull().default('valid'),
+  qrCode: text('qr_code').notNull(),
+  checkedInAt: timestamp('checked_in_at'),
+  checkedInBy: text('checked_in_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('tickets_owner_idx').on(table.ownerId),
+  index('tickets_event_status_idx').on(table.eventId, table.status),
+])
+
+export const ticketTransfers = pgTable('ticket_transfers', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  ticketId: text('ticket_id').notNull().references(() => tickets.id, { onDelete: 'cascade' }),
+  fromUserId: text('from_user_id').notNull().references(() => users.id),
+  toUserId: text('to_user_id').notNull().references(() => users.id),
+  transferredAt: timestamp('transferred_at').notNull().defaultNow(),
+  note: text('note'),
+}, (table) => [
+  index('ticket_transfers_ticket_idx').on(table.ticketId),
+])
+
+export const refunds = pgTable('refunds', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orderId: text('order_id').notNull().references(() => orders.id),
+  ticketIds: jsonb('ticket_ids').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  reason: text('reason'),
+  requestedBy: text('requested_by').notNull().references(() => users.id),
+  approvedBy: text('approved_by').references(() => users.id),
+  status: text('status').notNull().default('approved'),
+  refundedAt: timestamp('refunded_at').notNull().defaultNow(),
+}, (table) => [
+  index('refunds_order_idx').on(table.orderId),
+])
+
+export const ticketTiersRelations = relations(ticketTiers, ({ one, many }) => ({
+  event: one(events, { fields: [ticketTiers.eventId], references: [events.id] }),
+  tickets: many(tickets),
+}))
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  user: one(users, { fields: [orders.userId], references: [users.id] }),
+  event: one(events, { fields: [orders.eventId], references: [events.id] }),
+  tickets: many(tickets),
+  refunds: many(refunds),
+}))
+
+export const ticketsRelations = relations(tickets, ({ one, many }) => ({
+  order: one(orders, { fields: [tickets.orderId], references: [orders.id] }),
+  tier: one(ticketTiers, { fields: [tickets.tierId], references: [ticketTiers.id] }),
+  event: one(events, { fields: [tickets.eventId], references: [events.id] }),
+  owner: one(users, { fields: [tickets.ownerId], references: [users.id], relationName: 'ticketOwner' }),
+  checkedInByUser: one(users, { fields: [tickets.checkedInBy], references: [users.id], relationName: 'ticketCheckedInBy' }),
+  transfers: many(ticketTransfers),
+}))
+
+export const ticketTransfersRelations = relations(ticketTransfers, ({ one }) => ({
+  ticket: one(tickets, { fields: [ticketTransfers.ticketId], references: [tickets.id] }),
+  fromUser: one(users, { fields: [ticketTransfers.fromUserId], references: [users.id], relationName: 'transferFrom' }),
+  toUser: one(users, { fields: [ticketTransfers.toUserId], references: [users.id], relationName: 'transferTo' }),
+}))
+
+export const refundsRelations = relations(refunds, ({ one }) => ({
+  order: one(orders, { fields: [refunds.orderId], references: [orders.id] }),
+  requestedByUser: one(users, { fields: [refunds.requestedBy], references: [users.id], relationName: 'refundRequestedBy' }),
+  approvedByUser: one(users, { fields: [refunds.approvedBy], references: [users.id], relationName: 'refundApprovedBy' }),
 }))
 
 // ============================================================

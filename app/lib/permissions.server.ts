@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { db } from './db'
+import { db } from './db.server'
 import { userCapabilities } from './schema'
 import type { Role } from './permissions'
 

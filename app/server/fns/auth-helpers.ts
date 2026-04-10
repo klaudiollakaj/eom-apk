@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getHeaders } from '@tanstack/react-start/server'
-import { auth } from '~/lib/auth'
+import { auth } from '~/lib/auth.server'
 import { isAdmin } from '~/lib/permissions'
 
 export const getSession = createServerFn({ method: 'GET' }).handler(

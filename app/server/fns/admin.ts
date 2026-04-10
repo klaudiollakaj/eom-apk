@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, and, or, like, count, desc } from 'drizzle-orm'
-import { db } from '~/lib/db'
+import { db } from '~/lib/db.server'
 import { users, userLogs, sessions } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -10,7 +10,7 @@ import {
   creatableRoles,
   type Role,
 } from '~/lib/permissions'
-import { auth } from '~/lib/auth'
+import { auth } from '~/lib/auth.server'
 
 export const listUsers = createServerFn({ method: 'GET' })
   .validator(
