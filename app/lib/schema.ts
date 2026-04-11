@@ -639,6 +639,20 @@ export const ticketTransfers = pgTable('ticket_transfers', {
   index('ticket_transfers_ticket_idx').on(table.ticketId),
 ])
 
+export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  stripeEventId: text('stripe_event_id').notNull().unique(),
+  type: text('type').notNull(),
+  status: text('status').notNull().default('received'), // received | processed | failed | ignored
+  payload: jsonb('payload'),
+  error: text('error'),
+  receivedAt: timestamp('received_at').notNull().defaultNow(),
+  processedAt: timestamp('processed_at'),
+}, (table) => [
+  index('stripe_webhook_events_type_idx').on(table.type),
+  index('stripe_webhook_events_status_idx').on(table.status),
+])
+
 export const refunds = pgTable('refunds', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   orderId: text('order_id').notNull().references(() => orders.id),

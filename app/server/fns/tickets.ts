@@ -864,11 +864,12 @@ export const transferTicket = createServerFn({ method: 'POST' })
 
 // ==================== REFUND FLOW ====================
 
-async function performRefund(
+export async function performRefund(
   ticketId: string,
   actorId: string,
   reason: string | undefined,
   isAdminOverride: boolean,
+  skipStripe = false,
 ) {
   return db.transaction(async (tx) => {
     const ticket = await tx.query.tickets.findFirst({
@@ -889,8 +890,10 @@ async function performRefund(
       sql`SELECT id FROM ticket_tiers WHERE id = ${ticket.tierId} FOR UPDATE`,
     )
 
-    // Stripe refund (best-effort; logs on failure but doesn't block DB refund)
+    // Stripe refund (best-effort; logs on failure but doesn't block DB refund).
+    // Skipped when the refund originated from Stripe itself (webhook-initiated).
     if (
+      !skipStripe &&
       ticket.order.paymentMethod === 'stripe' &&
       ticket.order.paymentRef &&
       ticket.tier.priceCents > 0
@@ -978,7 +981,7 @@ async function performRefund(
   })
 }
 
-function sendRefundEmail(notify: {
+export function sendRefundEmail(notify: {
   email: string
   name: string
   eventTitle: string
