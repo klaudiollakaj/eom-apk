@@ -310,7 +310,8 @@ function UserActions({
 
           {(user.role === 'staff' || user.role === 'admin') && (
             <Link
-              to={`/admin/users/${user.id}/caps`}
+              to="/admin/users/$userId/caps"
+              params={{ userId: user.id }}
               className="rounded bg-purple-100 dark:bg-purple-900 px-2 py-1 text-xs text-purple-700 dark:text-purple-300"
             >
               Capabilities

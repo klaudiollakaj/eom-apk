@@ -48,5 +48,5 @@ export const listLogs = createServerFn({ method: 'GET' })
       db.select({ total: count() }).from(userLogs).where(where),
     ])
 
-    return { logs, total }
+    return { logs: logs as any[], total }
   })

@@ -61,7 +61,8 @@ function CapabilitiesPage() {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <Link
-                      to={`/admin/users/${item.user.id}/caps`}
+                      to="/admin/users/$userId/caps"
+                      params={{ userId: item.user.id }}
                       className="text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
                       Manage

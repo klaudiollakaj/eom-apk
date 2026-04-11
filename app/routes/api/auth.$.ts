@@ -1,7 +1,7 @@
 import { createServerFileRoute } from '@tanstack/react-start/server'
 import { auth } from '../../lib/auth.server'
 
-export const ServerRoute = createServerFileRoute('/api/auth/$').methods({
+export const ServerRoute = createServerFileRoute('/api/auth/$' as never).methods({
   GET: ({ request }) => auth.handler(request),
   POST: async ({ request }) => {
     // Rebuild request to avoid TanStack Start body-parsing conflicts with Better Auth

@@ -152,7 +152,6 @@ function CheckoutPage() {
         data: {
           eventId: event.id,
           code: promoInput.trim(),
-          subtotalCents,
         },
       })
       setApplied(result)

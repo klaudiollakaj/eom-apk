@@ -5,7 +5,7 @@ export interface ChatMessage {
   id: string
   senderId: string
   content: string
-  createdAt: string
+  createdAt: string | Date
   sender: { id: string; name: string; image: string | null }
 }
 
@@ -21,11 +21,11 @@ function getInitials(name: string): string {
   return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-function formatTime(dateStr: string): string {
+function formatTime(dateStr: string | Date): string {
   return new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | Date): string {
   const d = new Date(dateStr)
   const today = new Date()
   const yesterday = new Date(today)

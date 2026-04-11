@@ -66,7 +66,7 @@ export function ProviderAnalyticsSection() {
               <AreaChart data={revenueTrend}>
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `€${v}`} />
-                <Tooltip formatter={(v: number) => `€${v}`} />
+                <Tooltip formatter={(v) => `€${v}`} />
                 <Area type="monotone" dataKey="revenue" stroke="#818cf8" fill="#c7d2fe" fillOpacity={0.3} />
               </AreaChart>
             </ResponsiveContainer>

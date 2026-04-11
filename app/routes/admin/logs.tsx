@@ -35,7 +35,7 @@ function LogsPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
       },
-    }).then(setData)
+    }).then((result) => setData(result as { logs: any[]; total: number }))
   }, [page, action, dateFrom, dateTo])
 
   return (

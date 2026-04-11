@@ -13,7 +13,7 @@ function getHandler() {
   return _handler
 }
 
-export const ServerRoute = createServerFileRoute('/api/uploadthing').methods({
+export const ServerRoute = createServerFileRoute('/api/uploadthing' as never).methods({
   GET: ({ request }) => {
     return getHandler()(request)
   },

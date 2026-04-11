@@ -5,7 +5,7 @@ import { messages, negotiations } from '~/lib/schema'
 import { eq, and, gt, desc } from 'drizzle-orm'
 import { auth } from '~/lib/auth.server'
 
-export const ServerRoute = createServerFileRoute('/api/chat-stream').methods({
+export const ServerRoute = createServerFileRoute('/api/chat-stream' as never).methods({
   GET: async ({ request }) => {
     const url = new URL(request.url)
     const negotiationId = url.searchParams.get('negotiationId')

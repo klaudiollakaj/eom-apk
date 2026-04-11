@@ -269,7 +269,7 @@ export const getUnreadCounts = createServerFn({ method: 'GET' }).handler(
     `)
 
     const counts: Record<string, number> = {}
-    for (const row of results.rows as { negotiationId: string; unreadCount: number }[]) {
+    for (const row of results as unknown as { negotiationId: string; unreadCount: number }[]) {
       counts[row.negotiationId] = row.unreadCount
     }
     return counts

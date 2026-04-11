@@ -110,7 +110,7 @@ export function OrganizerAnalyticsSection() {
               <BarChart data={spendByEvent} layout="vertical">
                 <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => `€${v}`} />
                 <YAxis type="category" dataKey="title" tick={{ fontSize: 10 }} width={120} />
-                <Tooltip formatter={(v: number) => `€${v}`} />
+                <Tooltip formatter={(v) => `€${v}`} />
                 <Bar dataKey="totalSpend" fill="#818cf8" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -165,7 +165,7 @@ export function OrganizerAnalyticsSection() {
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
                 <YAxis yAxisId="left" tick={{ fontSize: 10 }} allowDecimals={false} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => `€${v}`} />
-                <Tooltip formatter={(value: number, name: string) => name === 'Revenue' ? `€${value}` : value} />
+                <Tooltip formatter={(value, name) => name === 'Revenue' ? `€${value}` : value} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line yAxisId="left" type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} dot={false} name="Tickets" />
                 <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={2} dot={false} name="Revenue" />
@@ -196,7 +196,7 @@ export function OrganizerAnalyticsSection() {
                       <Cell key={i} fill={TIER_COLORS[i % TIER_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => `€${v}`} />
+                  <Tooltip formatter={(v) => `€${v}`} />
                 </PieChart>
               </ResponsiveContainer>
             )}

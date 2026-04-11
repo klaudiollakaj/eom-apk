@@ -533,6 +533,6 @@ export const getReviewableDeals = createServerFn({ method: 'GET' }).handler(
       ORDER BY es.created_at DESC
     `)
 
-    return results.rows
+    return results as unknown as any[]
   },
 )

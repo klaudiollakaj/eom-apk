@@ -6,7 +6,7 @@ interface Round {
   price: string | null
   message: string | null
   roundNumber: number
-  createdAt: string
+  createdAt: string | Date
   sender?: { name: string; image: string | null }
 }
 

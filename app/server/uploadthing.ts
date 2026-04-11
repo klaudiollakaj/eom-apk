@@ -18,7 +18,7 @@ export const uploadRouter = {
     }),
 
   galleryImage: f({
-    image: { maxFileSize: '10MB', maxFileCount: 6 },
+    image: { maxFileSize: '8MB', maxFileCount: 6 },
   })
     .middleware(async ({ req }) => {
       const session = await auth.api.getSession({ headers: req.headers })
