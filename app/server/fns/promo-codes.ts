@@ -133,13 +133,13 @@ export const deletePromoCode = createServerFn({ method: 'POST' })
   })
 
 /**
- * Public validation — used on the checkout page to preview discount before purchase.
- * Does NOT reserve or consume the code; the real atomic check happens in purchaseTickets.
+ * Public validation — used on the checkout page to verify a code before purchase.
+ * Does NOT reserve or consume the code; the real atomic check + price computation
+ * happens in purchaseTickets. Returns the promo metadata so the client can compute
+ * the discount locally with the shared pricing helper.
  */
 export const previewPromoCode = createServerFn({ method: 'POST' })
-  .validator(
-    (input: { eventId: string; code: string; subtotalCents: number }) => input,
-  )
+  .validator((input: { eventId: string; code: string }) => input)
   .handler(async ({ data }) => {
     const code = normalizeCode(data.code)
     if (!code) throw new Error('PROMO_INVALID')
@@ -156,18 +156,9 @@ export const previewPromoCode = createServerFn({ method: 'POST' })
       throw new Error('PROMO_EXHAUSTED')
     }
 
-    let discountCents = 0
-    if (promo.discountType === 'percent') {
-      discountCents = Math.floor((data.subtotalCents * promo.discountValue) / 100)
-    } else {
-      discountCents = promo.discountValue
-    }
-    if (discountCents > data.subtotalCents) discountCents = data.subtotalCents
-
     return {
       code: promo.code,
       discountType: promo.discountType as 'percent' | 'fixed',
       discountValue: promo.discountValue,
-      discountCents,
     }
   })

@@ -8,6 +8,7 @@ import { RefundModal } from '~/components/tickets/RefundModal'
 import { RoleHeader } from '~/components/layout/RoleHeader'
 import { useSession } from '~/lib/auth-client'
 import { generateTicketPdf } from '~/lib/ticket-pdf'
+import { computeTicketPaidCents } from '~/lib/pricing'
 
 export const Route = createFileRoute('/tickets/$ticketId')({
   beforeLoad: async () => {
@@ -29,6 +30,15 @@ function TicketDetailPage() {
   const [showRefund, setShowRefund] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
+  const promo = ticket.order?.promoCode
+    ? {
+        discountType: ticket.order.promoCode.discountType,
+        discountValue: ticket.order.promoCode.discountValue,
+      }
+    : null
+  const paidCents = computeTicketPaidCents(ticket.tier.priceCents, promo)
+  const hasDiscount = promo !== null && paidCents < ticket.tier.priceCents
+
   async function handleDownload() {
     setDownloading(true)
     try {
@@ -42,7 +52,7 @@ function TicketDetailPage() {
         city: ticket.event.city,
         country: ticket.event.country,
         tierName: ticket.tier.name,
-        priceCents: ticket.tier.priceCents,
+        priceCents: paidCents,
         attendeeName: session.data?.user?.name ?? 'Attendee',
         orderNumber: ticket.order?.orderNumber ?? null,
       })
@@ -101,8 +111,19 @@ function TicketDetailPage() {
             <span className="font-medium">{ticket.tier.name}</span>
             {ticket.tier.priceCents > 0 && (
               <span className="text-gray-500">
-                {' '}
-                · ${(ticket.tier.priceCents / 100).toFixed(2)}
+                {' · '}
+                {hasDiscount ? (
+                  <>
+                    <span className="line-through">
+                      ${(ticket.tier.priceCents / 100).toFixed(2)}
+                    </span>{' '}
+                    <span className="font-medium text-green-600 dark:text-green-400">
+                      ${(paidCents / 100).toFixed(2)}
+                    </span>
+                  </>
+                ) : (
+                  <>${(ticket.tier.priceCents / 100).toFixed(2)}</>
+                )}
               </span>
             )}
           </p>
@@ -183,7 +204,7 @@ function TicketDetailPage() {
       {showRefund && (
         <RefundModal
           ticketId={ticket.id}
-          amountCents={ticket.tier.priceCents}
+          amountCents={paidCents}
           onClose={() => setShowRefund(false)}
           onSuccess={refresh}
         />

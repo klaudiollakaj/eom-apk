@@ -13,6 +13,7 @@ import { getSession } from '~/server/fns/auth-helpers'
 import { CheckoutSummary } from '~/components/tickets/CheckoutSummary'
 import { MockPaymentForm, type MockPaymentValues } from '~/components/tickets/MockPaymentForm'
 import { StripePaymentForm } from '~/components/tickets/StripePaymentForm'
+import { computeDiscountCents } from '~/lib/pricing'
 
 const searchSchema = z.object({
   tier: z.string().optional(),
@@ -91,7 +92,6 @@ function CheckoutPage() {
     code: string
     discountType: 'percent' | 'fixed'
     discountValue: number
-    discountCents: number
   } | null>(null)
 
   // Stripe state
@@ -129,18 +129,12 @@ function CheckoutPage() {
     [lines],
   )
 
-  // Recompute discount against current subtotal for percent codes;
-  // clamp fixed codes to subtotal.
-  const effectiveDiscountCents = useMemo(() => {
-    if (!applied) return 0
-    let d = 0
-    if (applied.discountType === 'percent') {
-      d = Math.floor((subtotalCents * applied.discountValue) / 100)
-    } else {
-      d = applied.discountValue
-    }
-    return Math.min(d, subtotalCents)
-  }, [applied, subtotalCents])
+  // Recompute discount whenever cart or promo changes — uses the shared
+  // pricing helper so server and client stay in sync.
+  const effectiveDiscountCents = useMemo(
+    () => computeDiscountCents(lines, applied),
+    [applied, lines],
+  )
 
   const totalCents = Math.max(0, subtotalCents - effectiveDiscountCents)
   const isFree = totalCents === 0

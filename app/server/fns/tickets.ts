@@ -18,6 +18,7 @@ import { hasCapability, requireCapability } from '~/lib/permissions.server'
 import { signTicketToken, verifyTicketToken } from '~/lib/ticket-qr.server'
 import { sendEmail } from '~/lib/email'
 import { getStripe, isStripeEnabled, getStripePublishableKey } from '~/lib/stripe.server'
+import { computeCartPricing as computePricing } from '~/lib/pricing'
 
 async function requireEventOwnership(eventId: string, userId: string, role: Role) {
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
@@ -314,40 +315,30 @@ async function computeCartPricing(input: {
   })
   if (tierRows.length !== tierIds.length) throw new Error('TIER_NOT_FOUND')
 
-  let subtotalCents = 0
-  for (const item of input.items) {
+  const lines = input.items.map((item) => {
     const tier = tierRows.find((t) => t.id === item.tierId)!
-    subtotalCents += tier.priceCents * item.quantity
-  }
+    return { priceCents: tier.priceCents, quantity: item.quantity }
+  })
 
-  let discountCents = 0
+  let promo: { discountType: string; discountValue: number } | null = null
   if (input.promoCodeStr && input.promoCodeStr.trim()) {
     const codeStr = input.promoCodeStr.trim().toUpperCase()
-    const promo = await db.query.promoCodes.findFirst({
+    const row = await db.query.promoCodes.findFirst({
       where: and(
         eq(promoCodes.eventId, input.eventId),
         sql`UPPER(${promoCodes.code}) = ${codeStr}`,
       ),
     })
-    if (promo && promo.isActive) {
-      const expired = promo.expiresAt && promo.expiresAt.getTime() < Date.now()
-      const exhausted = promo.maxUses !== null && promo.usedCount >= promo.maxUses
+    if (row && row.isActive) {
+      const expired = row.expiresAt && row.expiresAt.getTime() < Date.now()
+      const exhausted = row.maxUses !== null && row.usedCount >= row.maxUses
       if (!expired && !exhausted) {
-        if (promo.discountType === 'percent') {
-          discountCents = Math.floor((subtotalCents * promo.discountValue) / 100)
-        } else {
-          discountCents = promo.discountValue
-        }
-        if (discountCents > subtotalCents) discountCents = subtotalCents
+        promo = { discountType: row.discountType, discountValue: row.discountValue }
       }
     }
   }
 
-  return {
-    subtotalCents,
-    discountCents,
-    totalCents: subtotalCents - discountCents,
-  }
+  return computePricing(lines, promo)
 }
 
 export const getStripeConfig = createServerFn({ method: 'GET' }).handler(
@@ -520,12 +511,15 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
           throw new Error('PROMO_EXHAUSTED')
         }
 
-        if (promo.discountType === 'percent') {
-          discountCents = Math.floor((subtotalCents * promo.discountValue) / 100)
-        } else if (promo.discountType === 'fixed') {
-          discountCents = promo.discountValue
-        }
-        if (discountCents > subtotalCents) discountCents = subtotalCents
+        const lines = plan.map((p) => ({
+          priceCents: p.tier.priceCents,
+          quantity: p.quantity,
+        }))
+        const pricing = computePricing(lines, {
+          discountType: promo.discountType,
+          discountValue: promo.discountValue,
+        })
+        discountCents = pricing.discountCents
         appliedPromoId = promo.id
       }
 
@@ -725,7 +719,9 @@ export const getTicket = createServerFn({ method: 'GET' })
             organizer: { columns: { id: true, name: true } },
           },
         },
-        order: true,
+        order: {
+          with: { promoCode: true },
+        },
       },
     })
     if (!ticket) throw new Error('NOT_FOUND')
