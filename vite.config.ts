@@ -7,6 +7,9 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  ssr: {
+    noExternal: ['recharts', '@reduxjs/toolkit'],
+  },
   plugins: [
     nodePolyfills({
       include: ['buffer', 'perf_hooks'],
