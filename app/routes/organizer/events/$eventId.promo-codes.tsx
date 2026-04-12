@@ -149,6 +149,13 @@ function PromoCodesPage() {
           >
             Ticket Tiers
           </Link>
+          <Link
+            to="/organizer/events/$eventId/invites"
+            params={{ eventId: event.id }}
+            className="rounded border px-3 py-2 text-sm dark:border-gray-700"
+          >
+            Invites
+          </Link>
           <button
             onClick={() => setModal({ mode: 'create' })}
             className="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"

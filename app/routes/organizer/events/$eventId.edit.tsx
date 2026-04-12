@@ -104,6 +104,13 @@ function EditEventPage() {
         >
           Sales
         </Link>
+        <Link
+          to="/organizer/events/$eventId/invites"
+          params={{ eventId: event.id }}
+          className="pb-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+        >
+          Invites
+        </Link>
       </div>
       <EventForm initialData={initialData} onSubmit={handleSubmit} submitLabel={event.status === 'draft' ? 'Publish' : 'Save'} />
     </div>

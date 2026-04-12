@@ -4,7 +4,7 @@ import { db } from '~/lib/db.server'
 import {
   users, events, services, serviceCategories, categories,
   negotiations, negotiationRounds, eventServices,
-  tickets, ticketTiers,
+  tickets, ticketTiers, eventViews,
 } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -366,6 +366,95 @@ export const getOrganizerAttendanceRate = createServerFn({ method: 'GET' }).hand
     const rate = total > 0 ? Math.round((checkedIn / total) * 100) : 0
 
     return { total, checkedIn, rate }
+  },
+)
+
+export const getOrganizerEventViews = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const session = await requireAuth()
+    const since = daysAgo(30)
+
+    const rows = await db
+      .select({
+        date: sql<string>`DATE(${eventViews.viewedAt})`.as('date'),
+        views: count(eventViews.id),
+        unique: sql<number>`COUNT(DISTINCT COALESCE(${eventViews.userId}, ${eventViews.visitorId}))`.as('unique'),
+      })
+      .from(eventViews)
+      .innerJoin(events, eq(eventViews.eventId, events.id))
+      .where(and(
+        eq(events.organizerId, session.user.id),
+        gte(eventViews.viewedAt, since),
+      ))
+      .groupBy(sql`DATE(${eventViews.viewedAt})`)
+      .orderBy(sql`DATE(${eventViews.viewedAt})`)
+
+    return rows.map((r) => ({ date: r.date, views: Number(r.views), unique: Number(r.unique) }))
+  },
+)
+
+export const getOrganizerTopEventsByViews = createServerFn({ method: 'GET' })
+  .validator((input: { limit?: number }) => input)
+  .handler(async ({ data }) => {
+    const session = await requireAuth()
+    const limit = data.limit ?? 5
+
+    const rows = await db
+      .select({
+        eventId: events.id,
+        title: events.title,
+        views: count(eventViews.id),
+      })
+      .from(eventViews)
+      .innerJoin(events, eq(eventViews.eventId, events.id))
+      .where(eq(events.organizerId, session.user.id))
+      .groupBy(events.id, events.title)
+      .orderBy(desc(count(eventViews.id)))
+      .limit(limit)
+
+    return rows.map((r) => ({ eventId: r.eventId, title: r.title, views: Number(r.views) }))
+  })
+
+export const exportOrganizerAnalyticsCSV = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const session = await requireAuth()
+
+    const myEvents = await db.query.events.findMany({
+      where: eq(events.organizerId, session.user.id),
+      columns: { id: true, title: true, startDate: true, status: true, capacity: true },
+    })
+
+    // Get ticket counts and revenue per event
+    const rows: string[] = ['Event,Date,Status,Capacity,Tickets Sold,Revenue,Views']
+
+    for (const evt of myEvents) {
+      const [ticketRow] = await db
+        .select({
+          sold: count(tickets.id),
+          revenue: sql<number>`COALESCE(SUM(${ticketTiers.priceCents}), 0)`,
+        })
+        .from(tickets)
+        .innerJoin(ticketTiers, eq(tickets.tierId, ticketTiers.id))
+        .where(and(
+          eq(tickets.eventId, evt.id),
+          sql`${tickets.status} <> 'refunded'`,
+        ))
+
+      const [viewRow] = await db
+        .select({ views: count(eventViews.id) })
+        .from(eventViews)
+        .where(eq(eventViews.eventId, evt.id))
+
+      const sold = Number(ticketRow?.sold ?? 0)
+      const revenue = (Number(ticketRow?.revenue ?? 0) / 100).toFixed(2)
+      const views = Number(viewRow?.views ?? 0)
+      const date = new Date(evt.startDate).toISOString().split('T')[0]
+      const title = evt.title.replace(/,/g, ' ')
+
+      rows.push(`${title},${date},${evt.status},${evt.capacity ?? ''},${sold},${revenue},${views}`)
+    }
+
+    return rows.join('\n')
   },
 )
 

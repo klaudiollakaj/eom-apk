@@ -78,6 +78,34 @@
       "when": 1775998527619,
       "tag": "0010_add_lat_lng_to_events",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775999106326,
+      "tag": "0011_add_event_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776000270672,
+      "tag": "0012_add_recurring_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1776000420858,
+      "tag": "0013_add_newsletter_subscribers",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1776000608782,
+      "tag": "0014_add_event_views",
+      "breakpoints": true
     }
   ]
 }

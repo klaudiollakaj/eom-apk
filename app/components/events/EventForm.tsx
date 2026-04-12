@@ -24,10 +24,13 @@ export interface EventFormData {
   bannerImage: string | null
   price: string
   capacity: string
-  visibility: 'public' | 'unlisted'
+  visibility: 'public' | 'unlisted' | 'invite_only'
   ageRestriction: string
   contactEmail: string
   contactPhone: string
+  recurrenceFrequency: string
+  recurrenceCount: string
+  recurrenceUntil: string
   tagNames: string[]
   galleryImages: GalleryImage[]
 }
@@ -38,6 +41,7 @@ const EMPTY_FORM: EventFormData = {
   venueName: '', address: '', city: '', country: '', latitude: '', longitude: '', onlineUrl: '',
   bannerImage: null, price: '', capacity: '', visibility: 'public',
   ageRestriction: '', contactEmail: '', contactPhone: '',
+  recurrenceFrequency: '', recurrenceCount: '', recurrenceUntil: '',
   tagNames: [], galleryImages: [],
 }
 
@@ -208,7 +212,49 @@ export function EventForm({ initialData, onSubmit, submitLabel }: EventFormProps
             <select value={form.visibility} onChange={(e) => update({ visibility: e.target.value as any })} className="rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
               <option value="public">Public</option>
               <option value="unlisted">Unlisted</option>
+              <option value="invite_only">Invite Only</option>
             </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Recurring Event</label>
+            <select
+              value={form.recurrenceFrequency}
+              onChange={(e) => update({ recurrenceFrequency: e.target.value })}
+              className="rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Not recurring</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Every 2 weeks</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            {form.recurrenceFrequency && (
+              <div className="mt-2 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Number of occurrences</label>
+                  <input
+                    type="number"
+                    min="2"
+                    max="52"
+                    value={form.recurrenceCount}
+                    onChange={(e) => update({ recurrenceCount: e.target.value })}
+                    placeholder="e.g. 10"
+                    className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Or end by date</label>
+                  <input
+                    type="date"
+                    value={form.recurrenceUntil}
+                    onChange={(e) => update({ recurrenceUntil: e.target.value })}
+                    className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

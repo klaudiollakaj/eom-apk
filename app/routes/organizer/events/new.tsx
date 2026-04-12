@@ -34,6 +34,13 @@ function NewEventPage() {
         ageRestriction: data.ageRestriction || undefined,
         contactEmail: data.contactEmail || undefined,
         contactPhone: data.contactPhone || undefined,
+        recurrence: data.recurrenceFrequency
+          ? {
+              frequency: data.recurrenceFrequency as any,
+              count: data.recurrenceCount ? Number(data.recurrenceCount) : undefined,
+              until: data.recurrenceUntil || undefined,
+            }
+          : undefined,
         tagNames: data.tagNames.length > 0 ? data.tagNames : undefined,
         galleryImages: data.galleryImages.filter((img) => img.imageUrl).length > 0
           ? data.galleryImages.filter((img) => img.imageUrl)

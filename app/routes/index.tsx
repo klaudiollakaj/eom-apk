@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Header } from '~/components/layout/Header'
 import { Footer } from '~/components/layout/Footer'
 import { EventCard } from '~/components/events/EventCard'
+import { NewsletterSignup } from '~/components/newsletter/NewsletterSignup'
 import { getNavLinks } from '~/server/fns/navigation'
 import {
   getFeaturedEvents, getLatestEvents, getStartingSoonEvents, getTrendingEventIds,
@@ -138,14 +139,9 @@ function Home() {
         </div>
       </section>
 
-      <section className="bg-gray-100 px-6 py-16 dark:bg-gray-800">
-        <div className="mx-auto max-w-xl text-center">
-          <h2 className="text-2xl font-bold">Stay Updated</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Subscribe to get notified about new events and news</p>
-          <form className="mt-6 flex gap-2" onSubmit={(e) => e.preventDefault()}>
-            <input type="email" placeholder="Your email address" className="flex-1 rounded-lg border px-4 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400" />
-            <button type="submit" className="rounded-lg bg-indigo-600 px-6 py-2 text-white hover:bg-indigo-700">Subscribe</button>
-          </form>
+      <section className="px-6 py-16">
+        <div className="mx-auto max-w-xl">
+          <NewsletterSignup />
         </div>
       </section>
 

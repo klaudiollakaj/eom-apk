@@ -8,6 +8,9 @@ import {
   getOrganizerRevenueByTier,
   getOrganizerTopEventsByRevenue,
   getOrganizerAttendanceRate,
+  getOrganizerEventViews,
+  getOrganizerTopEventsByViews,
+  exportOrganizerAnalyticsCSV,
 } from '~/server/fns/analytics'
 import { KPICard } from './KPICard'
 import { EmptyChart } from './EmptyChart'
@@ -35,6 +38,8 @@ export function OrganizerAnalyticsSection() {
   const [revenueByTier, setRevenueByTier] = useState<any[]>([])
   const [topEvents, setTopEvents] = useState<any[]>([])
   const [attendance, setAttendance] = useState<{ total: number; checkedIn: number; rate: number } | null>(null)
+  const [viewTrend, setViewTrend] = useState<any[]>([])
+  const [topByViews, setTopByViews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -47,7 +52,9 @@ export function OrganizerAnalyticsSection() {
       getOrganizerRevenueByTier(),
       getOrganizerTopEventsByRevenue({ data: { limit: 5 } }),
       getOrganizerAttendanceRate(),
-    ]).then(([a, b, s, t, ts, rt, te, att]) => {
+      getOrganizerEventViews(),
+      getOrganizerTopEventsByViews({ data: { limit: 5 } }),
+    ]).then(([a, b, s, t, ts, rt, te, att, vt, tbv]) => {
       setAnalytics(a ?? null)
       setEventBreakdown(Array.isArray(b) ? b : [])
       setSpendByEvent(Array.isArray(s) ? s : [])
@@ -56,6 +63,8 @@ export function OrganizerAnalyticsSection() {
       setRevenueByTier(Array.isArray(rt) ? rt : [])
       setTopEvents(Array.isArray(te) ? te : [])
       setAttendance(att ?? null)
+      setViewTrend(Array.isArray(vt) ? vt : [])
+      setTopByViews(Array.isArray(tbv) ? tbv : [])
       setLoading(false)
     }).catch((err) => {
       console.error('Failed to load organizer analytics:', err)
@@ -226,6 +235,72 @@ export function OrganizerAnalyticsSection() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── Event Views ── */}
+      <div className="border-t pt-6 dark:border-gray-700">
+        <h2 className="mb-4 text-lg font-bold">Event Views</h2>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-lg border bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <h3 className="mb-3 text-sm font-semibold">Views (Last 30 Days)</h3>
+            {viewTrend.length === 0 ? (
+              <EmptyChart />
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={viewTrend}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Line type="monotone" dataKey="views" stroke="#6366f1" strokeWidth={2} dot={false} name="Total Views" />
+                  <Line type="monotone" dataKey="unique" stroke="#22c55e" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Unique Visitors" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="rounded-lg border bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <h3 className="mb-3 text-sm font-semibold">Top Events by Views</h3>
+            {topByViews.length === 0 ? (
+              <EmptyChart />
+            ) : (
+              <div className="divide-y text-sm dark:divide-gray-700">
+                {topByViews.map((e: any, i: number) => (
+                  <div key={e.eventId} className="flex items-center justify-between py-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="w-5 text-xs text-gray-400">#{i + 1}</span>
+                      <span className="truncate font-medium">{e.title}</span>
+                    </div>
+                    <span className="ml-2 shrink-0 text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                      {e.views} views
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Export ── */}
+      <div className="border-t pt-6 dark:border-gray-700">
+        <button
+          onClick={async () => {
+            const csv = await exportOrganizerAnalyticsCSV()
+            const blob = new Blob([csv], { type: 'text/csv' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'eom-analytics.csv'
+            a.click()
+            URL.revokeObjectURL(url)
+          }}
+          className="rounded bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+        >
+          Export Analytics (CSV)
+        </button>
       </div>
     </div>
   )

@@ -12,11 +12,14 @@ import { listEventTiers } from '~/server/fns/tickets'
 const EventMap = lazy(() => import('~/components/events/EventMap').then(m => ({ default: m.EventMap })))
 
 export const Route = createFileRoute('/events/$eventId')({
-  loader: async ({ params }) => {
+  validateSearch: (search: Record<string, unknown>) => ({
+    invite: (search.invite as string) || undefined,
+  }),
+  loader: async ({ params, search }) => {
     const [headerLinks, footerLinks, event, tiers] = await Promise.all([
       getNavLinks({ data: { position: 'header' } }).catch(() => []),
       getNavLinks({ data: { position: 'footer' } }).catch(() => []),
-      getEvent({ data: { eventId: params.eventId } }).catch(() => null),
+      getEvent({ data: { eventId: params.eventId, inviteCode: search.invite } }).catch(() => null),
       listEventTiers({ data: { eventId: params.eventId } }).catch(() => []),
     ])
     return { headerLinks, footerLinks, event, tiers }

@@ -6,7 +6,7 @@ import { db } from '~/lib/db.server'
 import {
   events, eventImages, eventTags, tags, categories, users, userLogs,
   publishingPermissions, navigationLinks, negotiations, negotiationRounds, eventServices,
-  tickets,
+  tickets, eventInvites, eventViews,
 } from '~/lib/schema'
 import { requireAuth } from './auth-helpers'
 import { requireCapability } from '~/lib/permissions.server'
@@ -14,6 +14,7 @@ import { isAdmin, type Role } from '~/lib/permissions'
 import { findOrCreateTag } from './tags'
 import { utapi, getKeyFromUrl } from '~/lib/storage'
 import DOMPurify from 'isomorphic-dompurify'
+import { buildRRuleString, generateOccurrenceDates, type RecurrenceConfig } from '~/lib/recurrence'
 
 function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, {
@@ -47,6 +48,7 @@ export const listPublicEvents = createServerFn({ method: 'GET' })
     const conditions: any[] = [
       eq(events.status, 'published'),
       eq(events.visibility, 'public'),
+      eq(events.isSeriesParent, false),
       inArray(events.organizerId, activeOrganizerIds()),
     ]
 
@@ -94,6 +96,7 @@ export const getFeaturedEvents = createServerFn({ method: 'GET' }).handler(
       where: and(
         eq(events.status, 'published'),
         eq(events.visibility, 'public'),
+        eq(events.isSeriesParent, false),
         eq(events.isFeatured, true),
         inArray(events.organizerId, activeOrganizerIds()),
       ),
@@ -113,6 +116,7 @@ export const getLatestEvents = createServerFn({ method: 'GET' }).handler(
       where: and(
         eq(events.status, 'published'),
         eq(events.visibility, 'public'),
+        eq(events.isSeriesParent, false),
         eq(events.isFeatured, false),
         inArray(events.organizerId, activeOrganizerIds()),
       ),
@@ -136,6 +140,7 @@ export const getStartingSoonEvents = createServerFn({ method: 'GET' }).handler(
       where: and(
         eq(events.status, 'published'),
         eq(events.visibility, 'public'),
+        eq(events.isSeriesParent, false),
         inArray(events.organizerId, activeOrganizerIds()),
         gte(events.startDate, now),
         lte(events.startDate, soon),
@@ -168,6 +173,7 @@ export const getTrendingEventIds = createServerFn({ method: 'GET' })
       .where(and(
         eq(events.status, 'published'),
         eq(events.visibility, 'public'),
+        eq(events.isSeriesParent, false),
         gte(tickets.createdAt, since),
         sql`${tickets.status} <> 'refunded'`,
       ))
@@ -186,6 +192,7 @@ export const getPublicEventCities = createServerFn({ method: 'GET' }).handler(
       .where(and(
         eq(events.status, 'published'),
         eq(events.visibility, 'public'),
+        eq(events.isSeriesParent, false),
         sql`${events.city} IS NOT NULL AND ${events.city} <> ''`,
       ))
       .orderBy(asc(events.city))
@@ -195,7 +202,7 @@ export const getPublicEventCities = createServerFn({ method: 'GET' }).handler(
 )
 
 export const getEvent = createServerFn({ method: 'GET' })
-  .validator((input: { eventId: string }) => input)
+  .validator((input: { eventId: string; inviteCode?: string }) => input)
   .handler(async ({ data }) => {
     const event = await db.query.events.findFirst({
       where: eq(events.id, data.eventId),
@@ -223,6 +230,43 @@ export const getEvent = createServerFn({ method: 'GET' })
 
     if (!event.organizer.isActive && !isAdminUser) throw new Error('NOT_FOUND')
     if (event.status !== 'published' && !isOwner && !isAdminUser) throw new Error('NOT_FOUND')
+
+    // Invite-only access control
+    if (event.visibility === 'invite_only' && !isOwner && !isAdminUser) {
+      // Accept invite code if provided
+      if (data.inviteCode) {
+        const codeInvite = await db.query.eventInvites.findFirst({
+          where: and(
+            eq(eventInvites.eventId, event.id),
+            eq(eventInvites.inviteCode, data.inviteCode),
+          ),
+        })
+        if (codeInvite && session && codeInvite.status === 'pending') {
+          await db.update(eventInvites)
+            .set({ status: 'accepted', userId: session.user.id, respondedAt: new Date() })
+            .where(eq(eventInvites.id, codeInvite.id))
+        }
+        if (codeInvite) return event
+      }
+
+      if (!session) throw new Error('NOT_FOUND')
+      const invite = await db.query.eventInvites.findFirst({
+        where: and(
+          eq(eventInvites.eventId, event.id),
+          or(
+            eq(eventInvites.userId, session.user.id),
+            eq(eventInvites.email, session.user.email),
+          ),
+        ),
+      })
+      if (!invite) throw new Error('NOT_FOUND')
+    }
+
+    // Track view (fire-and-forget)
+    db.insert(eventViews).values({
+      eventId: event.id,
+      userId: session?.user.id ?? null,
+    }).catch(() => {})
 
     return event
   })
@@ -267,10 +311,11 @@ export const createEvent = createServerFn({ method: 'POST' })
     bannerImage?: string
     price?: string
     capacity?: number
-    visibility?: 'public' | 'unlisted'
+    visibility?: 'public' | 'unlisted' | 'invite_only'
     ageRestriction?: string
     contactEmail?: string
     contactPhone?: string
+    recurrence?: RecurrenceConfig
     tagNames?: string[]
     galleryImages?: { imageUrl: string; caption?: string; sortOrder: number }[]
   }) => input)
@@ -283,6 +328,8 @@ export const createEvent = createServerFn({ method: 'POST' })
     if (user?.isSuspended) throw new Error('ACCOUNT_SUSPENDED')
 
     const sanitizedDescription = sanitizeHtml(data.description)
+
+    const rruleString = data.recurrence ? buildRRuleString(data.recurrence) : null
 
     const [event] = await db.insert(events).values({
       organizerId: session.user.id,
@@ -308,8 +355,48 @@ export const createEvent = createServerFn({ method: 'POST' })
       ageRestriction: data.ageRestriction || null,
       contactEmail: data.contactEmail || null,
       contactPhone: data.contactPhone || null,
+      recurrenceRule: rruleString,
+      isSeriesParent: !!rruleString,
       status: 'draft',
     }).returning()
+
+    // Generate occurrence events if recurring
+    if (rruleString) {
+      const dates = generateOccurrenceDates(rruleString, new Date(data.startDate))
+      const durationMs = data.endDate
+        ? new Date(data.endDate).getTime() - new Date(data.startDate).getTime()
+        : 0
+
+      for (const date of dates) {
+        await db.insert(events).values({
+          organizerId: session.user.id,
+          title: data.title,
+          description: sanitizedDescription,
+          categoryId: data.categoryId || null,
+          type: data.type,
+          startDate: date,
+          endDate: durationMs ? new Date(date.getTime() + durationMs) : null,
+          startTime: data.startTime || null,
+          endTime: data.endTime || null,
+          venueName: data.venueName || null,
+          address: data.address || null,
+          city: data.city || null,
+          country: data.country || null,
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
+          onlineUrl: data.onlineUrl || null,
+          bannerImage: data.bannerImage || null,
+          price: data.price || null,
+          capacity: data.capacity || null,
+          visibility: data.visibility ?? 'public',
+          ageRestriction: data.ageRestriction || null,
+          contactEmail: data.contactEmail || null,
+          contactPhone: data.contactPhone || null,
+          seriesId: event.id,
+          status: 'draft',
+        })
+      }
+    }
 
     if (data.tagNames && data.tagNames.length > 0) {
       for (const name of data.tagNames) {
@@ -359,7 +446,7 @@ export const updateEvent = createServerFn({ method: 'POST' })
     bannerImage?: string
     price?: string
     capacity?: number
-    visibility?: 'public' | 'unlisted'
+    visibility?: 'public' | 'unlisted' | 'invite_only'
     ageRestriction?: string
     contactEmail?: string
     contactPhone?: string
@@ -479,6 +566,14 @@ export const publishEvent = createServerFn({ method: 'POST' })
       .set({ status: 'published', updatedAt: new Date() })
       .where(eq(events.id, data.id))
       .returning()
+
+    // Also publish all series occurrences
+    if (event.isSeriesParent) {
+      await db
+        .update(events)
+        .set({ status: 'published', updatedAt: new Date() })
+        .where(and(eq(events.seriesId, data.id), eq(events.status, 'draft')))
+    }
 
     await db.insert(userLogs).values({
       userId: session.user.id,

@@ -199,6 +199,9 @@ export const events = pgTable('events', {
   ageRestriction: text('age_restriction'),
   contactEmail: text('contact_email'),
   contactPhone: text('contact_phone'),
+  seriesId: text('series_id'),
+  recurrenceRule: text('recurrence_rule'),
+  isSeriesParent: boolean('is_series_parent').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
@@ -384,6 +387,8 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   ticketTiers: many(ticketTiers),
   tickets: many(tickets),
   eventReviews: many(eventReviews),
+  invites: many(eventInvites),
+  views: many(eventViews),
 }))
 
 export const eventImagesRelations = relations(eventImages, ({ one }) => ({
@@ -707,6 +712,54 @@ export const refundsRelations = relations(refunds, ({ one }) => ({
   requestedByUser: one(users, { fields: [refunds.requestedBy], references: [users.id], relationName: 'refundRequestedBy' }),
   approvedByUser: one(users, { fields: [refunds.approvedBy], references: [users.id], relationName: 'refundApprovedBy' }),
 }))
+
+// ==================== EVENT INVITES ====================
+
+export const eventInvites = pgTable('event_invites', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  userId: text('user_id').references(() => users.id),
+  inviteCode: text('invite_code').notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  status: text('status').notNull().default('pending'), // pending | accepted | declined
+  invitedBy: text('invited_by').notNull().references(() => users.id),
+  sentAt: timestamp('sent_at').notNull().defaultNow(),
+  respondedAt: timestamp('responded_at'),
+})
+
+export const eventInvitesRelations = relations(eventInvites, ({ one }) => ({
+  event: one(events, { fields: [eventInvites.eventId], references: [events.id] }),
+  user: one(users, { fields: [eventInvites.userId], references: [users.id], relationName: 'invitedUser' }),
+  inviter: one(users, { fields: [eventInvites.invitedBy], references: [users.id], relationName: 'inviter' }),
+}))
+
+// ==================== EVENT VIEWS ====================
+
+export const eventViews = pgTable('event_views', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  visitorId: text('visitor_id'),
+  userId: text('user_id'),
+  city: text('city'),
+  country: text('country'),
+  viewedAt: timestamp('viewed_at').notNull().defaultNow(),
+})
+
+export const eventViewsRelations = relations(eventViews, ({ one }) => ({
+  event: one(events, { fields: [eventViews.eventId], references: [events.id] }),
+}))
+
+// ==================== NEWSLETTER ====================
+
+export const newsletterSubscribers = pgTable('newsletter_subscribers', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  email: text('email').notNull().unique(),
+  confirmedAt: timestamp('confirmed_at'),
+  confirmToken: text('confirm_token').$defaultFn(() => crypto.randomUUID()),
+  unsubscribedAt: timestamp('unsubscribed_at'),
+  unsubscribeToken: text('unsubscribe_token').notNull().$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
 
 // ============================================================
 // Singular aliases for Better Auth's Drizzle adapter
