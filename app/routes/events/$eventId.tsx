@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { Suspense, lazy } from 'react'
 import { Header } from '~/components/layout/Header'
 import { Footer } from '~/components/layout/Footer'
 import { EventServicesList } from '~/components/events/EventServicesList'
@@ -7,6 +8,8 @@ import { EventReviewsSection } from '~/components/reviews/EventReviewsSection'
 import { getNavLinks } from '~/server/fns/navigation'
 import { getEvent } from '~/server/fns/events'
 import { listEventTiers } from '~/server/fns/tickets'
+
+const EventMap = lazy(() => import('~/components/events/EventMap').then(m => ({ default: m.EventMap })))
 
 export const Route = createFileRoute('/events/$eventId')({
   loader: async ({ params }) => {
@@ -110,6 +113,28 @@ function EventDetailPage() {
                     <p className="text-xs font-medium uppercase text-gray-500">Location</p>
                     <p className="mt-1 font-medium">{location}</p>
                     {event.address && <p className="text-sm text-gray-500">{event.address}</p>}
+                    {event.latitude && event.longitude && (
+                      <>
+                        <Suspense fallback={<div className="mt-2 h-48 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />}>
+                          <EventMap
+                            latitude={Number(event.latitude)}
+                            longitude={Number(event.longitude)}
+                            venueName={event.venueName ?? undefined}
+                            address={event.address ?? undefined}
+                            className="mt-2 h-48 w-full rounded-lg"
+                          />
+                        </Suspense>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline"
+                        >
+                          Open in Google Maps
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                      </>
+                    )}
                   </div>
                 )}
 

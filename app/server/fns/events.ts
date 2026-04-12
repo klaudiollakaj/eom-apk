@@ -261,6 +261,8 @@ export const createEvent = createServerFn({ method: 'POST' })
     address?: string
     city?: string
     country?: string
+    latitude?: string
+    longitude?: string
     onlineUrl?: string
     bannerImage?: string
     price?: string
@@ -296,6 +298,8 @@ export const createEvent = createServerFn({ method: 'POST' })
       address: data.address || null,
       city: data.city || null,
       country: data.country || null,
+      latitude: data.latitude || null,
+      longitude: data.longitude || null,
       onlineUrl: data.onlineUrl || null,
       bannerImage: data.bannerImage || null,
       price: data.price || null,
@@ -349,6 +353,8 @@ export const updateEvent = createServerFn({ method: 'POST' })
     address?: string
     city?: string
     country?: string
+    latitude?: string
+    longitude?: string
     onlineUrl?: string
     bannerImage?: string
     price?: string
@@ -389,6 +395,8 @@ export const updateEvent = createServerFn({ method: 'POST' })
     if (updates.address !== undefined) values.address = updates.address || null
     if (updates.city !== undefined) values.city = updates.city || null
     if (updates.country !== undefined) values.country = updates.country || null
+    if (updates.latitude !== undefined) values.latitude = updates.latitude || null
+    if (updates.longitude !== undefined) values.longitude = updates.longitude || null
     if (updates.onlineUrl !== undefined) values.onlineUrl = updates.onlineUrl || null
     if (updates.bannerImage !== undefined) values.bannerImage = updates.bannerImage || null
     if (updates.price !== undefined) values.price = updates.price || null

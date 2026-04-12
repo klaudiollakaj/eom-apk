@@ -71,6 +71,13 @@
       "when": 1775906499001,
       "tag": "0009_early_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775998527619,
+      "tag": "0010_add_lat_lng_to_events",
+      "breakpoints": true
     }
   ]
 }

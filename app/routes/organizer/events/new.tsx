@@ -24,6 +24,8 @@ function NewEventPage() {
         address: data.address || undefined,
         city: data.city || undefined,
         country: data.country || undefined,
+        latitude: data.latitude || undefined,
+        longitude: data.longitude || undefined,
         onlineUrl: data.onlineUrl || undefined,
         bannerImage: data.bannerImage || undefined,
         price: data.price || undefined,

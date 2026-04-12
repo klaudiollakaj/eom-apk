@@ -187,6 +187,8 @@ export const events = pgTable('events', {
   address: text('address'),
   city: text('city'),
   country: text('country'),
+  latitude: numeric('latitude', { precision: 10, scale: 7 }),
+  longitude: numeric('longitude', { precision: 10, scale: 7 }),
   onlineUrl: text('online_url'),
   bannerImage: text('banner_image'),
   price: numeric('price', { precision: 10, scale: 2 }),

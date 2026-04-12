@@ -3,6 +3,7 @@ import { RichTextEditor } from './RichTextEditor'
 import { ImageUploader } from './ImageUploader'
 import { GalleryUploader, type GalleryImage } from './GalleryUploader'
 import { listCategories } from '~/server/fns/categories'
+import { geocodeAddress } from '~/server/fns/geocode'
 
 export interface EventFormData {
   title: string
@@ -17,6 +18,8 @@ export interface EventFormData {
   address: string
   city: string
   country: string
+  latitude: string
+  longitude: string
   onlineUrl: string
   bannerImage: string | null
   price: string
@@ -32,7 +35,7 @@ export interface EventFormData {
 const EMPTY_FORM: EventFormData = {
   title: '', description: '', categoryId: '', type: 'single_day',
   startDate: '', endDate: '', startTime: '', endTime: '',
-  venueName: '', address: '', city: '', country: '', onlineUrl: '',
+  venueName: '', address: '', city: '', country: '', latitude: '', longitude: '', onlineUrl: '',
   bannerImage: null, price: '', capacity: '', visibility: 'public',
   ageRestriction: '', contactEmail: '', contactPhone: '',
   tagNames: [], galleryImages: [],
@@ -50,6 +53,7 @@ export function EventForm({ initialData, onSubmit, submitLabel }: EventFormProps
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [tagInput, setTagInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [geocoding, setGeocoding] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { listCategories().then(setCategories) }, [])
@@ -155,6 +159,36 @@ export function EventForm({ initialData, onSubmit, submitLabel }: EventFormProps
             <div><label className="mb-1 block text-sm font-medium">Address</label><input type="text" value={form.address} onChange={(e) => update({ address: e.target.value })} className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></div>
             <div><label className="mb-1 block text-sm font-medium">City</label><input type="text" value={form.city} onChange={(e) => update({ city: e.target.value })} className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></div>
             <div><label className="mb-1 block text-sm font-medium">Country</label><input type="text" value={form.country} onChange={(e) => update({ country: e.target.value })} className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></div>
+            <div className="col-span-2">
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  disabled={geocoding || (!form.address && !form.city && !form.venueName)}
+                  onClick={async () => {
+                    setGeocoding(true)
+                    try {
+                      const query = [form.address, form.city, form.country].filter(Boolean).join(', ')
+                      const result = await geocodeAddress({ data: { query } })
+                      if (result) {
+                        update({ latitude: String(result.latitude), longitude: String(result.longitude) })
+                      } else {
+                        setError('Could not find coordinates for this address. Try a more specific address.')
+                      }
+                    } finally {
+                      setGeocoding(false)
+                    }
+                  }}
+                  className="rounded bg-gray-100 px-3 py-2 text-sm font-medium hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:hover:bg-gray-600"
+                >
+                  {geocoding ? 'Looking up...' : 'Find on Map'}
+                </button>
+                {form.latitude && form.longitude && (
+                  <span className="text-xs text-green-600 dark:text-green-400">
+                    Coordinates set ({Number(form.latitude).toFixed(4)}, {Number(form.longitude).toFixed(4)})
+                  </span>
+                )}
+              </div>
+            </div>
             <div><label className="mb-1 block text-sm font-medium">Online URL</label><input type="url" value={form.onlineUrl} onChange={(e) => update({ onlineUrl: e.target.value })} placeholder="For virtual/hybrid events" className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" /></div>
           </div>
 
