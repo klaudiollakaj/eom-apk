@@ -22,8 +22,8 @@ import type Stripe from 'stripe'
 import { db } from '~/lib/db.server'
 import { orders, tickets, stripeWebhookEvents, events, users } from '~/lib/schema'
 import { getStripe } from '~/lib/stripe.server'
-import { sendEmail } from '~/lib/email'
-import { performRefund, sendRefundEmail } from '~/server/fns/tickets'
+import { sendEmail } from '~/lib/email.server'
+import { performRefund, sendRefundEmail } from '~/server/fns/refund-helpers.server'
 
 const HANDLED_EVENTS = new Set([
   'charge.refunded',
