@@ -17,6 +17,7 @@ import { isAdmin, type Role } from '~/lib/permissions'
 import { hasCapability, requireCapability } from '~/lib/permissions.server'
 import { signTicketToken, verifyTicketToken } from '~/lib/ticket-qr.server'
 import { sendEmail } from '~/lib/email'
+import { buildIcsEvent } from '~/lib/ics'
 import { getStripe, isStripeEnabled, getStripePublishableKey } from '~/lib/stripe.server'
 import { computeCartPricing as computePricing } from '~/lib/pricing'
 
@@ -616,6 +617,10 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
         ticketIds: createdTicketIds,
         eventTitle: event.title,
         eventStartDate: event.startDate,
+        eventStartTime: event.startTime,
+        eventVenueName: event.venueName,
+        eventCity: event.city,
+        eventCountry: event.country,
         totalCents,
         discountCents,
       }
@@ -657,10 +662,21 @@ export const purchaseTickets = createServerFn({ method: 'POST' })
         '',
         '— EOM',
       ].filter(Boolean)
+
+      const locationParts = [result.eventVenueName, result.eventCity, result.eventCountry].filter(Boolean)
+      const icalEvent = buildIcsEvent({
+        title: result.eventTitle,
+        startDate: result.eventStartDate,
+        startTime: result.eventStartTime,
+        location: locationParts.length > 0 ? locationParts.join(', ') : undefined,
+        description: `Order ${result.orderNumber} — ${result.ticketIds.length} ticket(s)`,
+      })
+
       sendEmail({
         to: session.user.email,
         subject: `Order confirmed — ${result.eventTitle}`,
         text: lines.join('\n'),
+        icalEvent,
       }).catch((err) => console.error('[purchase email]', err))
     }
 
@@ -701,6 +717,30 @@ export const getMyTickets = createServerFn({ method: 'GET' }).handler(
     past.sort((a, b) => b.event.startDate.getTime() - a.event.startDate.getTime())
 
     return { upcoming, past }
+  },
+)
+
+export const getMyOrders = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const session = await requireAuth()
+
+    const rows = await db.query.orders.findMany({
+      where: eq(orders.userId, session.user.id),
+      orderBy: [desc(orders.createdAt)],
+      with: {
+        event: {
+          columns: { id: true, title: true, startDate: true, bannerImage: true },
+        },
+        tickets: {
+          columns: { id: true, status: true, tierId: true },
+        },
+        promoCode: {
+          columns: { code: true, discountType: true, discountValue: true },
+        },
+      },
+    })
+
+    return rows
   },
 )
 

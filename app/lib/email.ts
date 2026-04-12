@@ -15,10 +15,12 @@ export async function sendEmail({
   to,
   subject,
   text,
+  icalEvent,
 }: {
   to: string
   subject: string
   text: string
+  icalEvent?: string
 }) {
   if (!transporter) {
     console.warn(`[email] SMTP not configured, skipping email to ${to}: ${subject}`)
@@ -29,5 +31,16 @@ export async function sendEmail({
     to,
     subject,
     text,
+    ...(icalEvent
+      ? {
+          attachments: [
+            {
+              filename: 'event.ics',
+              content: icalEvent,
+              contentType: 'text/calendar; method=REQUEST',
+            },
+          ],
+        }
+      : {}),
   })
 }

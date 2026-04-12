@@ -39,6 +39,40 @@ function SalesDashboardPage() {
     setAttendees(freshAttendees)
   }
 
+  async function handleExportCsv() {
+    const allAttendees = await getEventAttendeeList({
+      data: { eventId: event.id },
+    })
+
+    const statusLabel = (s: string) =>
+      s === 'checked_in' ? 'Checked In' : s === 'refunded' ? 'Refunded' : 'Valid'
+
+    const escapeCell = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`
+      }
+      return value
+    }
+
+    const header = ['Name', 'Email', 'Tier', 'Status', 'Checked In At']
+    const rows = allAttendees.map((a) => [
+      escapeCell(a.attendee.name),
+      escapeCell(a.attendee.email),
+      escapeCell(a.tier.name),
+      statusLabel(a.status),
+      a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '',
+    ])
+
+    const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${event.title}-attendees.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleSearch(value: string) {
     setSearch(value)
     const result = await getEventAttendeeList({
@@ -70,6 +104,12 @@ function SalesDashboardPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Sales & Attendees</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="rounded border px-3 py-2 text-sm dark:border-gray-700"
+          >
+            Export CSV
+          </button>
           <Link
             to="/organizer/events/$eventId/tickets"
             params={{ eventId: event.id }}
