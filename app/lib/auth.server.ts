@@ -6,7 +6,7 @@ import { APIError } from 'better-auth/api'
 import { db } from './db.server'
 import * as schema from './schema'
 import { users } from './schema'
-import { sendEmail } from './email'
+import { sendEmail } from './email.server'
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema }),
