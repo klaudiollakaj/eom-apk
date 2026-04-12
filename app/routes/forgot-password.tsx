@@ -12,7 +12,7 @@ function ForgotPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' })
+    await authClient.forgetPassword({ email, redirectTo: '/reset-password' })
     setSubmitted(true)
   }
 

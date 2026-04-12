@@ -1,19 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getHeaders } from '@tanstack/react-start/server'
 import { auth } from '~/lib/auth.server'
-import { isAdmin, type Role } from '~/lib/permissions'
-
-function toHeaders(): Headers {
-  const h = new Headers()
-  for (const [k, v] of Object.entries(getHeaders())) {
-    if (typeof v === 'string') h.set(k, v)
-  }
-  return h
-}
+import { isAdmin } from '~/lib/permissions'
 
 export const getSession = createServerFn({ method: 'GET' }).handler(
   async () => {
-    return auth.api.getSession({ headers: toHeaders() })
+    return auth.api.getSession({ headers: getHeaders() })
   },
 )
 
@@ -25,6 +17,6 @@ export async function requireAuth() {
 
 export async function requireAdmin() {
   const session = await requireAuth()
-  if (!isAdmin(session.user.role as Role)) throw new Error('FORBIDDEN')
+  if (!isAdmin(session.user.role)) throw new Error('FORBIDDEN')
   return session
 }
